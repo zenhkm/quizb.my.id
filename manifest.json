@@ -1,0 +1,21 @@
+{
+  "name": "QuizB | Kuis Berkah",
+  "short_name": "QuizB",
+  "description": "Uji wawasanmu dengan kuis seru di berbagai bidang! Buat rekor baru dan tantang temanmu.",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0d6efd"
+}
