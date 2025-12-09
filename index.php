@@ -5381,8 +5381,20 @@ function view_home()
   }
   $searchable_list = array_values(array_unique($searchable_list, SORT_REGULAR));
 
-  // Data Awal untuk Card Browser
-  $themes = q("SELECT id, name FROM themes ORDER BY sort_order, name")->fetchAll();
+  // Data Awal untuk Card Browser dengan filter owner_user_id
+  $allowed_teacher_ids = get_allowed_teacher_ids_for_content();
+  
+  if (empty($allowed_teacher_ids)) {
+      // Hanya tampilkan tema global
+      $themes = q("SELECT id, name FROM themes WHERE owner_user_id IS NULL ORDER BY sort_order, name")->fetchAll();
+  } else {
+      // Tampilkan tema global + tema dari pengajar yang diizinkan
+      $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
+      $themes = q(
+          "SELECT id, name FROM themes WHERE owner_user_id IS NULL OR owner_user_id IN ($placeholders) ORDER BY sort_order, name",
+          $allowed_teacher_ids
+      )->fetchAll();
+  }
 
   // Ambil peran user
   $user_role = $_SESSION['user']['role'] ?? 'umum';
