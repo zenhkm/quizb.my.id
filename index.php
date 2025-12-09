@@ -1910,6 +1910,14 @@ function api_get_page_content()
     case 'pesan':
       view_pesan();
       break;
+    case 'teacher_crud':
+      // Render teacher CRUD content for SPA/api_get_page_content
+      view_crud_pengajar();
+      break;
+    case 'teacher_qmanage':
+      // Render teacher question management content for SPA/api_get_page_content
+      view_qmanage_pengajar();
+      break;
     /* ▼▼▼ TAMBAHKAN KASUS BARU UNTUK HALAMAN TUGAS INI ▼▼▼ */
     case 'student_tasks':
       view_student_tasks();
