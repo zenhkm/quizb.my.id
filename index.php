@@ -10963,6 +10963,9 @@ function view_crud_pengajar()
         return;
     }
 
+    // Wrap dalam container untuk margin/padding yang benar
+    echo '<div class="container mt-4">';
+
     $user_id = uid();
     $sel_theme_id    = isset($_GET['theme_id']) ? (int)$_GET['theme_id'] : 0;
     $sel_subtheme_id = isset($_GET['subtheme_id']) ? (int)$_GET['subtheme_id'] : 0;
@@ -11124,6 +11127,7 @@ function view_crud_pengajar()
     echo '</div></div></div>'; // END Kolom 3
 
     echo '</div>'; // END .row g-3
+    echo '</div>'; // END .container
     
     // Catatan: Pastikan Anda menambahkan HTML MODAL Import Soal Master di bagian akhir file Anda, 
     // seperti yang diinstruksikan pada jawaban sebelumnya.
