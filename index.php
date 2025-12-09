@@ -2796,7 +2796,9 @@ JS;
   // ===================================================================
   // ▼▼▼ PASTE BLOK HEADER BARU INI ▼▼▼
   // ===================================================================
-  echo '</head><body>';
+  // Tambahkan wrapper terbuka untuk menyeimbangkan beberapa penutupan </div> yang tersebar
+  // (otomatis perbaikan sementara untuk memperbaiki masalah layout akibat tag tidak seimbang)
+  echo '</head><body><div class="auto-fix-wrap-1"><div class="auto-fix-wrap-2"><div class="auto-fix-wrap-3">';
 
   // ===================================================================
   // ▼▼▼ 2. LETAKKAN BLOK HTML INI TEPAT SETELAH echo '</head><body>'; ▼▼▼
