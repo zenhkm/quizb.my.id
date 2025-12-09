@@ -945,12 +945,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_classes_for_student' 
 if (isset($_GET['action']) && $_GET['action'] === 'save_student_class' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   handle_save_student_class();
 }
-if ($page === 'teacher_crud' && (is_pengajar() || is_admin())) {
-    view_crud_pengajar();
-}
-if ($page === 'teacher_qmanage' && (is_pengajar() || is_admin())) {
-    view_qmanage_pengajar();
-}
+// Note: teacher pages are handled in the main switch after html_head()
 if (isset($_GET['action']) && $_GET['action'] === 'crud_post_pengajar' && (is_pengajar() || is_admin())) {
     crud_post_pengajar();
 }
