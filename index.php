@@ -25,7 +25,21 @@ register_shutdown_function(function () {
 
 // === AKHIR ERROR REPORTING ===
 
-require_once __DIR__ . '/vendor/autoload.php';
+// Autoload dependencies if available. If missing, show a helpful error instead of a blank page.
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+  require_once __DIR__ . '/vendor/autoload.php';
+} else {
+  // In production you should run `composer install` to restore dependencies.
+  http_response_code(500);
+  echo '<div style="padding:20px;font-family:Arial,Helvetica,sans-serif">';
+  echo '<h2 style="color:#c00">Server configuration error</h2>';
+  echo '<p>Composer dependencies appear to be missing. Please run <code>composer install</code> in the project root.</p>';
+  echo '<p>If you are on shared hosting, upload the <code>vendor/</code> directory or run Composer there.</p>';
+  echo '</div>';
+  // Stop further processing so user sees the message instead of a blank page.
+  exit;
+}
+
 require_once __DIR__ . '/others/cronjob/wa.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
