@@ -2796,9 +2796,8 @@ JS;
   // ===================================================================
   // ▼▼▼ PASTE BLOK HEADER BARU INI ▼▼▼
   // ===================================================================
-  // Tambahkan wrapper terbuka untuk menyeimbangkan beberapa penutupan </div> yang tersebar
-  // (otomatis perbaikan sementara untuk memperbaiki masalah layout akibat tag tidak seimbang)
-  echo '</head><body><div class="auto-fix-wrap-1"><div class="auto-fix-wrap-2"><div class="auto-fix-wrap-3">';
+  // Kembalikan output normal head/body — pastikan tiap view menutup div sendiri
+  echo '</head><body>';
 
   // ===================================================================
   // ▼▼▼ 2. LETAKKAN BLOK HTML INI TEPAT SETELAH echo '</head><body>'; ▼▼▼
@@ -8303,7 +8302,7 @@ function view_challenges_list()
 
   echo '</div>'; // penutup .list-group
   // container already closed earlier in some branches; avoid double-close
-  // echo '</div>'; // penutup .container
+  // penutup .container (echo removed to avoid duplicate close)
 }
 
 
@@ -12157,7 +12156,7 @@ function view_qmanage()
   echo '      </a>';
   echo '  </div>';
 
-//   echo '</div>';
+//   penutup container (echo removed to avoid duplicate close)
   
   // Baris pemisah tidak lagi diperlukan karena sudah ada card
   // echo '<hr class="my-4">';
