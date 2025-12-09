@@ -1088,30 +1088,23 @@ if (($page ?? '') === 'play' && isset($_GET['mode']) && !isset($_GET['i']) && !i
     redirect("?page=play&title_id={$title_id}&mode={$mode}&i=0");
 }
 
-// START-PLAY (tanpa mode): default-kan ke 'instant' agar SELALU bikin sesi baru
+// START-PLAY (tanpa mode): JANGAN redirect, biarkan view_play() tampilkan pilihan mode
 if (($page ?? '') === 'play'
     && !isset($_GET['i'])
     && !isset($_GET['assignment_id'])
     && !isset($_GET['mode'])
     && isset($_GET['title_id'])) {
 
+    // Hanya clear session lama, JANGAN buat session baru
+    // Biarkan view_play() menampilkan pilihan mode
     $title_id = (int)($_GET['title_id'] ?? 0);
-    $mode = 'instant';
-
-    // Putus sesi lama jika beda judul (guard yang sudah kita buat)
     $user_id = uid();
+    
+    // Putus sesi lama jika beda judul
     ensure_session_bound_to_title(pdo_instance(), $user_id, $title_id);
-
-    // Buat sesi baru (pakai default jumlah soal)
-    $sid = create_session($title_id, $mode);
-
-    // Reset jejak assignment jika ada sisa
-    unset($_SESSION['quiz']['assignment_settings']);
-    unset($_SESSION['quiz']['assignment_id']);
-
-    // Set sesi baru & arahkan ke i=0
-    $_SESSION['quiz'] = ['session_id' => $sid, 'title_id' => $title_id, 'mode' => $mode];
-    redirect("?page=play&title_id={$title_id}&mode={$mode}&i=0");
+    
+    // JANGAN create_session di sini, JANGAN redirect
+    // Biarkan view_play() menangani pilihan mode
 }
 
 
@@ -6629,7 +6622,7 @@ function view_play()
   // Cek apakah ini dari assignment atau restart (jangan tampilkan pilihan mode)
   $from_assignment = isset($_GET['assignment_id']) && (int)$_GET['assignment_id'] > 0;
   $is_restart = isset($_GET['restart']) && $_GET['restart'] === '1';
-  $should_show_mode_selection = !$from_assignment && !$is_restart;
+  $should_show_mode_selection = !$from_assignment && !$is_restart && $title_id > 0;
 
   if (!$mode && $should_show_mode_selection) {
     echo '<div class="card shadow-sm border-0"><div class="card-body p-4 p-md-5">';
