@@ -6626,7 +6626,12 @@ function view_play()
     return;
   }
 
-  if (!$mode) {
+  // Cek apakah ini dari assignment atau restart (jangan tampilkan pilihan mode)
+  $from_assignment = isset($_GET['assignment_id']) && (int)$_GET['assignment_id'] > 0;
+  $is_restart = isset($_GET['restart']) && $_GET['restart'] === '1';
+  $should_show_mode_selection = !$from_assignment && !$is_restart;
+
+  if (!$mode && $should_show_mode_selection) {
     echo '<div class="card shadow-sm border-0"><div class="card-body p-4 p-md-5">';
     echo '  <h1 class="card-title text-center mb-2 h3">' . h($title['title']) . '</h1>';
     echo '  <p class="card-subtitle text-center text-muted mb-4">' . h($title['themen']) . ' › ' . h($title['subn']) . '</p>';
