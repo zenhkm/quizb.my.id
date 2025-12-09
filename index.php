@@ -31,7 +31,6 @@ require_once __DIR__ . '/others/cronjob/wa.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-
 // === SESSION: sangat awal, sebelum ada output apa pun ===
 if (session_status() === PHP_SESSION_NONE) {
 
