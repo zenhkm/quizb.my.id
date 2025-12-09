@@ -925,6 +925,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_page_content') {
 if (isset($_GET['action']) && $_GET['action'] === 'kirim_rekap') {
   handle_kirim_rekap();
 }
+if (isset($_GET['action']) && $_GET['action'] === 'rekap_nilai') {
+  handle_rekap_nilai();
+}
 if (isset($_GET['action']) && $_GET['action'] === 'api_get_quiz') {
   api_get_quiz(); // Panggil fungsi API yang baru kita buat
 }
@@ -3660,6 +3663,92 @@ function handle_download_csv()
     exit;
 }
 
+/**
+ * Menangani permintaan rekap nilai untuk sebuah kelas.
+ * Output: CSV yang di-download berisi skor tiap siswa per tugas.
+ */
+function handle_rekap_nilai()
+{
+  // Periksa autentikasi dasar
+  if (!uid()) {
+    http_response_code(403);
+    echo "Login diperlukan.";
+    exit;
+  }
+
+  $id_kelas = (int)($_GET['id_kelas'] ?? 0);
+  if ($id_kelas <= 0) {
+    http_response_code(400);
+    echo "ID kelas tidak valid.";
+    exit;
+  }
+
+  // Cek kepemilikan kelas: pengajar pemilik atau admin
+  if (!is_admin()) {
+    $owner = q("SELECT id_pengajar FROM classes WHERE id = ? LIMIT 1", [$id_kelas])->fetch();
+    if (!$owner || (int)$owner['id_pengajar'] !== (int)uid()) {
+      http_response_code(403);
+      echo "Akses ditolak.";
+      exit;
+    }
+  }
+
+  // Ambil daftar tugas untuk kelas
+  $assignments = q("SELECT id, judul_tugas FROM assignments WHERE id_kelas = ? ORDER BY created_at", [$id_kelas])->fetchAll(PDO::FETCH_ASSOC);
+
+  // Ambil daftar siswa anggota kelas
+  $students = q("SELECT u.id, u.name, u.email FROM users u JOIN class_members cm ON cm.id_pelajar = u.id WHERE cm.id_kelas = ? ORDER BY u.name", [$id_kelas])->fetchAll(PDO::FETCH_ASSOC);
+
+  // Ambil skor tertinggi per assignment per user (jika ada)
+  $scores = [];
+  if (!empty($assignments)) {
+    $assignment_ids = array_column($assignments, 'id');
+    $placeholders = implode(',', array_fill(0, count($assignment_ids), '?'));
+    $sql = "SELECT asub.assignment_id, asub.user_id, MAX(r.score) AS score
+        FROM assignment_submissions asub
+        JOIN results r ON asub.result_id = r.id
+        WHERE asub.assignment_id IN ($placeholders)
+        GROUP BY asub.assignment_id, asub.user_id";
+    $st = pdo()->prepare($sql);
+    $st->execute($assignment_ids);
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) {
+      $scores[$r['user_id']][$r['assignment_id']] = $r['score'];
+    }
+  }
+
+  // Stream CSV
+  header('Content-Type: text/csv; charset=UTF-8');
+  header('Content-Disposition: attachment; filename="rekap_nilai_kelas_' . $id_kelas . '.csv"');
+  $out = fopen('php://output', 'w');
+  // Tulis BOM untuk kompatibilitas Excel
+  fwrite($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+  // Header CSV
+  $header = ['No', 'User ID', 'Nama', 'Email'];
+  foreach ($assignments as $a) $header[] = $a['judul_tugas'];
+  $header[] = 'Rata-rata';
+  fputcsv($out, $header);
+
+  $no = 1;
+  foreach ($students as $s) {
+    $line = [$no, $s['id'], $s['name'], $s['email']];
+    $sum = 0; $count = 0;
+    foreach ($assignments as $a) {
+      $sc = $scores[$s['id']][$a['id']] ?? '';
+      if ($sc !== '') { $sum += (float)$sc; $count++; }
+      $line[] = $sc;
+    }
+    $avg = $count ? round($sum / $count, 2) : '';
+    $line[] = $avg;
+    fputcsv($out, $line);
+    $no++;
+  }
+
+  fclose($out);
+  exit;
+}
+
 // ===============================================
 // AWAL HANDLER KELOLA USER
 // ===============================================
@@ -5113,7 +5202,11 @@ $assignments = q("
 ", [$id_kelas])->fetchAll();
 
 if ($assignments) {
-    echo '<h5>Daftar Tugas yang Telah Diberikan</h5>';
+  echo '<h5>Daftar Tugas yang Telah Diberikan</h5>';
+  // Tombol rekap nilai untuk pengajar pemilik kelas
+  echo '<div class="mb-3">';
+  echo '  <a href="?action=rekap_nilai&id_kelas=' . $id_kelas . '" class="btn btn-sm btn-success">Rekap Nilai</a>';
+  echo '</div>';
     // Gunakan list-group-item-action agar bisa diklik
     echo '<div class="list-group mb-4">';
     foreach ($assignments as $tugas) {
