@@ -6314,7 +6314,7 @@ function view_difficulty_questions(int $title_id)
 
 
   if (!$rows) {
-    echo '<div class="alert alert-secondary">Belum ada soal sesuai filter.</div></div>';
+    echo '<div class="alert alert-secondary">Belum ada soal sesuai filter.</div>';
     return;
   }
 
@@ -8300,7 +8300,8 @@ function view_challenges_list()
   }
 
   echo '</div>'; // penutup .list-group
-  echo '</div>'; // penutup .container
+  // container already closed earlier in some branches; avoid double-close
+  // echo '</div>'; // penutup .container
 }
 
 
