@@ -5862,11 +5862,67 @@ function view_home()
 
 
 // ===============================================
+// HELPER: Dapatkan ID pengajar yang boleh dilihat user sesuai role
+// ===============================================
+/**
+ * Mengembalikan array ID pengajar yang konten (tema/subtema/judul) boleh dilihat oleh user saat ini
+ * - Admin: semua konten (global owner_user_id IS NULL + milik pengajar)
+ * - Pengajar: hanya konten miliknya sendiri
+ * - Pelajar: konten dari pengajar di kelas yang sama
+ * - Guest/Umum: hanya konten global (owner_user_id IS NULL)
+ */
+function get_allowed_teacher_ids_for_content()
+{
+    $user_id = uid();
+    $role = $_SESSION['user']['role'] ?? 'umum';
+    
+    $allowed_ids = [];
+    
+    if ($role === 'admin') {
+        // Admin bisa lihat semua konten (tidak perlu filter owner_user_id)
+        return null; // return null berarti no filter needed
+    } elseif ($role === 'pengajar' || $role === 'teacher') {
+        // Pengajar hanya lihat konten miliknya
+        $allowed_ids = [$user_id];
+    } elseif ($role === 'pelajar' || ($role === 'user' && ($_SESSION['user']['user_type'] ?? '') === 'Pelajar')) {
+        // Pelajar: ambil ID pengajar dari kelas yang sama
+        $pengajar_ids = q(
+            "SELECT DISTINCT c.id_pengajar FROM classes c
+             JOIN class_members cm ON c.id = cm.id_kelas
+             WHERE cm.id_pelajar = ?",
+            [$user_id]
+        )->fetchAll(PDO::FETCH_COLUMN, 0);
+        $allowed_ids = $pengajar_ids ?: [];
+    } else {
+        // Guest/Umum: tidak ada akses ke konten pribadi pengajar
+        $allowed_ids = [];
+    }
+    
+    return !empty($allowed_ids) ? $allowed_ids : [-1]; // return [-1] jika kosong agar query tidak return apapun
+}
+
+// ===============================================
 // HALAMAN BARU: JELAJAH TEMA (Tampilan Kartu)
 // ===============================================
 function view_explore()
 {
-  $themes = q("SELECT * FROM themes WHERE owner_user_id IS NULL ORDER BY sort_order, name")->fetchAll();
+  // Filter berdasarkan role dan class
+  $allowed_teacher_ids = get_allowed_teacher_ids_for_content();
+  
+  if ($allowed_teacher_ids === null) {
+      // Admin: tidak perlu filter
+      $themes = q("SELECT * FROM themes WHERE owner_user_id IS NULL ORDER BY sort_order, name")->fetchAll();
+  } else {
+      // Pengajar/Pelajar/Guest: filter berdasarkan owner_user_id
+      $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
+      $themes = q(
+          "SELECT * FROM themes WHERE owner_user_id IS NULL 
+           OR owner_user_id IN ($placeholders) 
+           ORDER BY sort_order, name",
+          $allowed_teacher_ids
+      )->fetchAll();
+  }
+  
   echo '<h3 class="mb-3">Jelajah Tema Kuis</h3><div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">';
   foreach ($themes as $t) {
     echo '<div class="col"><a class="text-decoration-none" href="?page=subthemes&theme_id=' . $t['id'] . '"><div class="card h-100 quiz-card"><div class="card-body"><h5>' . h($t['name']) . '</h5><p class="small text-muted">' . h($t['description']) . '</p></div></div></a></div>';
@@ -5876,11 +5932,24 @@ function view_explore()
 
 
 
+
 // ===============================================
 // PICKERS
 // ===============================================
 function view_themes()
 {
+  // Get allowed teacher IDs based on role and class
+  $allowed_teacher_ids = get_allowed_teacher_ids_for_content();
+  
+  // Build owner_user_id filter
+  $owner_filter = "";
+  $owner_params = [];
+  if ($allowed_teacher_ids !== null) {
+      $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
+      $owner_filter = "AND (t.owner_user_id IS NULL OR t.owner_user_id IN ($placeholders))";
+      $owner_params = $allowed_teacher_ids;
+  }
+  
   // =================================================================
   // BAGIAN 1: LOGIKA PENCARIAN (SAMA SEPERTI DI HALAMAN HOME)
   // =================================================================
@@ -5892,13 +5961,17 @@ function view_themes()
         FROM themes t
         LEFT JOIN subthemes s ON t.id = s.theme_id
         LEFT JOIN quiz_titles qt ON s.id = qt.subtheme_id
-        /* KRITIS: Hanya ambil data yang owner_user_id IS NULL */
-        WHERE t.owner_user_id IS NULL
-          AND (s.owner_user_id IS NULL OR s.id IS NULL)
-          AND (qt.owner_user_id IS NULL OR qt.id IS NULL)
+        /* KRITIS: Hanya ambil data yang owner_user_id IS NULL atau milik pengajar yang boleh diakses */
+        WHERE (t.owner_user_id IS NULL OR " . (count($owner_params) > 0 ? "t.owner_user_id IN (" . implode(',', array_fill(0, count($owner_params), '?')) . ")" : "FALSE") . ")
+          AND (s.owner_user_id IS NULL OR s.id IS NULL" . (count($owner_params) > 0 ? " OR s.owner_user_id IN (" . implode(',', array_fill(0, count($owner_params), '?')) . ")" : "") . ")
+          AND (qt.owner_user_id IS NULL OR qt.id IS NULL" . (count($owner_params) > 0 ? " OR qt.owner_user_id IN (" . implode(',', array_fill(0, count($owner_params), '?')) . ")" : "") . ")
         ORDER BY t.sort_order, t.name, s.name, qt.title
     ";
-  $flat_data = q($searchable_items_sql)->fetchAll();
+  
+  // Prepare parameters
+  $searchable_params = array_merge($owner_params, $owner_params, $owner_params);
+  $flat_data = q($searchable_items_sql, $searchable_params)->fetchAll();
+  
   $searchable_list = [];
   foreach ($flat_data as $item) {
     if ($item['subtheme_id']) {
@@ -5970,12 +6043,12 @@ function view_themes()
         JOIN subthemes st ON qt.subtheme_id = st.id
         JOIN themes t ON st.theme_id = t.id
         LEFT JOIN results r ON qt.id = r.title_id
-        /* KRITIS: Filter Judul yang owner_user_id IS NULL */
-        WHERE qt.owner_user_id IS NULL
+        /* KRITIS: Filter Judul yang owner_user_id IS NULL atau milik pengajar yang boleh diakses */
+        WHERE (qt.owner_user_id IS NULL OR " . (count($owner_params) > 0 ? "qt.owner_user_id IN (" . implode(',', array_fill(0, count($owner_params), '?')) . ")" : "FALSE") . ")
         GROUP BY qt.id, qt.title, st.name, t.name
         ORDER BY play_count DESC, t.name ASC, st.name ASC, qt.title ASC
     ";
-    $all_titles = q($all_titles_sql)->fetchAll();
+    $all_titles = q($all_titles_sql, $owner_params)->fetchAll();
 
   // ... di dalam fungsi view_themes() ...
   if (!$all_titles) {
