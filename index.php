@@ -933,6 +933,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_quiz') {
 if (isset($_GET['action']) && $_GET['action'] === 'api_submit_answers') {
   api_submit_answers(); // Panggil fungsi API yang baru kita buat
 }
+if (isset($_GET['action']) && $_GET['action'] === 'create_challenge' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+  handle_create_challenge();
+}
 if (isset($_GET['action']) && $_GET['action'] === 'download_csv') {
     handle_download_csv();
 }
@@ -3090,6 +3093,56 @@ JS;
   // Script untuk tombol Share (TIDAK BERUBAH)
   echo <<<JS
 <script>
+// Handler untuk tombol "Tantang Teman" yang membuat challenge
+document.getElementById('createChallenge')?.addEventListener('click', async function(e) {
+    e.preventDefault();
+    const titleId = this.getAttribute('data-title-id');
+    const sessionId = this.getAttribute('data-session-id');
+    const btn = this;
+    
+    btn.disabled = true;
+    btn.innerHTML = 'Membuat link tantangan...';
+    
+    try {
+        const response = await fetch('?action=create_challenge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                title_id: titleId,
+                session_id: sessionId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.token) {
+            // Setelah challenge dibuat, share link
+            const url = location.origin + location.pathname + '?page=challenge&token=' + result.token;
+            const title = 'Tantangan Kuis QUIZB';
+            const text = 'Coba kalahkan skor saya di kuis ini:';
+            
+            try {
+                if (navigator.share) {
+                    await navigator.share({ title, text, url });
+                } else {
+                    await navigator.clipboard.writeText(url);
+                    alert('Link tantangan berhasil dibuat dan disalin!');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        } else {
+            alert('Gagal membuat link tantangan: ' + (result.error || 'Error tidak diketahui'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat membuat link tantangan');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Tantang Teman';
+    }
+});
+
 const shareBtn = document.getElementById('shareChallenge');
 if (shareBtn) {
     shareBtn.addEventListener('click', async function(e) {
@@ -8003,13 +8056,15 @@ if (isset($_SESSION['quiz']['assignment_id']) && $session['user_id']) {
 
   $inChallenge = !empty($_SESSION['current_challenge_token']);
   $ch = null;
+  
+  // PERBAIKAN: Jangan auto-create challenge, hanya ambil jika sudah ada
   if (!$inChallenge) {
     $existTok = q("SELECT token FROM challenges WHERE owner_session_id=? OR owner_result_id=? LIMIT 1", [$sid, (int)($myRes['id'] ?? 0)])->fetch();
     if ($existTok) {
       $ch = $existTok['token'];
-    } else {
-      $ch = create_challenge_token($session['title_id'], $sid);
     }
+    // PERBAIKAN: Hapus create_challenge_token() dari sini
+    // Challenge hanya akan dibuat saat user klik "Tantang Teman"
   }
 
   echo '<div class="d-flex flex-wrap gap-2">'; // Tambahkan flex-wrap untuk responsivitas
@@ -8043,8 +8098,9 @@ if ($assignment_id) {
     echo "<a href='{$wa_link}' target='_blank' class='btn btn-success'><svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-whatsapp' viewBox='0 0 16 16'><path d='M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.89 7.89 0 0 0 13.6 2.326zM7.994 14.521a6.57 6.57 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.068-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z'/></svg> Story WA</a>";
   }
 
-  if (!$inChallenge && $ch) {
-    echo '<button id="shareChallenge" type="button" class="btn btn-primary" data-url="' . h(base_url() . '?page=challenge&token=' . $ch) . '">Tantang Teman</button>';
+  if (!$inChallenge && uid()) {
+    // PERBAIKAN: Tampilkan tombol untuk membuat challenge (bukan hanya jika sudah ada)
+    echo '<button id="createChallenge" type="button" class="btn btn-primary" data-title-id="' . $session['title_id'] . '" data-session-id="' . $sid . '">Tantang Teman</button>';
   }
 
   echo '<a class="btn btn-outline-secondary" href="?page=titles&subtheme_id=' . h(q("SELECT subtheme_id FROM quiz_titles WHERE id=?", [$session['title_id']])->fetch()['subtheme_id']) . '">Pilih Judul Lain</a>';
@@ -8103,6 +8159,50 @@ if ($assignment_id) {
 // ===============================================
 // CHALLENGE LINK
 // ===============================================
+
+// Handler untuk membuat challenge ketika user klik "Tantang Teman"
+function handle_create_challenge()
+{
+    header('Content-Type: application/json; charset=UTF-8');
+    
+    // Validasi input
+    $title_id = (int)($_POST['title_id'] ?? 0);
+    $session_id = (int)($_POST['session_id'] ?? 0);
+    
+    if ($title_id <= 0 || $session_id <= 0) {
+        echo json_encode(['success' => false, 'error' => 'Data tidak valid']);
+        exit;
+    }
+    
+    // Cek apakah session ada dan milik user
+    $session = q("SELECT user_id FROM quiz_sessions WHERE id = ?", [$session_id])->fetch();
+    if (!$session) {
+        echo json_encode(['success' => false, 'error' => 'Sesi tidak ditemukan']);
+        exit;
+    }
+    
+    // Cek apakah session milik user yang login
+    if ($session['user_id'] != uid()) {
+        echo json_encode(['success' => false, 'error' => 'Sesi bukan milik Anda']);
+        exit;
+    }
+    
+    // Cek apakah sudah ada challenge untuk session ini
+    $existing = q("SELECT token FROM challenges WHERE owner_session_id = ?", [$session_id])->fetch();
+    if ($existing) {
+        echo json_encode(['success' => true, 'token' => $existing['token']]);
+        exit;
+    }
+    
+    // Buat challenge token baru
+    try {
+        $token = create_challenge_token($title_id, $session_id);
+        echo json_encode(['success' => true, 'token' => $token]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => 'Gagal membuat challenge: ' . $e->getMessage()]);
+    }
+    exit;
+}
 function create_challenge_token($title_id, $session_id)
 {
   // Siapkan tabel komposisi tantangan
