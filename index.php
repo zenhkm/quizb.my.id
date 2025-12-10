@@ -1620,10 +1620,9 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     view_review_summary();
     break;
 
- case 'student_tasks': /* <-- TAMBAHKAN CASE BARU INI */
-    if (($_SESSION['user']['role'] ?? '') === 'pelajar') view_student_tasks();
-    else redirect('./');
-    break;    
+ case 'student_tasks':
+    view_student_tasks();
+    break;
   default:
     echo '<div class="container py-5"><h3>404</h3></div>';
     break;
@@ -10621,8 +10620,25 @@ function view_kelola_kelas_siswa()
  */
 function view_student_tasks()
 {
-    if (($_SESSION['user']['role'] ?? '') !== 'pelajar') {
-        echo '<div class="alert alert-danger">Akses ditolak.</div>';
+    // 1. Cek Login
+    if (!uid()) {
+        echo "<script>
+            alert('Anda belum login. Silakan login terlebih dahulu.');
+            window.location.href = './';
+        </script>";
+        return;
+    }
+
+    // 2. Cek Role Siswa
+    $role = $_SESSION['user']['role'] ?? '';
+    $user_type = $_SESSION['user']['user_type'] ?? '';
+    
+    // Siswa bisa berupa role 'pelajar' atau user biasa dengan tipe 'Pelajar'
+    if ($role !== 'pelajar' && !($role === 'user' && $user_type === 'Pelajar')) {
+         echo "<script>
+            alert('Halaman ini khusus untuk siswa.');
+            window.location.href = './';
+        </script>";
         return;
     }
     
