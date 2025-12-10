@@ -10624,7 +10624,12 @@ function view_student_tasks()
     if (!uid()) {
         echo "<script>
             alert('Anda belum login. Silakan login terlebih dahulu.');
-            window.location.href = './';
+            // Deteksi mobile device sederhana
+            if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                window.location.href = '?page=profile';
+            } else {
+                window.location.href = './';
+            }
         </script>";
         return;
     }
