@@ -2056,6 +2056,8 @@ function html_head()
 
 
   echo '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">';
+  // SweetAlert2 CDN
+  echo '<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>';
 
   // ===========================================
   // Inisialisasi Google Sign-In
@@ -10623,13 +10625,22 @@ function view_student_tasks()
     // 1. Cek Login
     if (!uid()) {
         echo "<script>
-            alert('Anda belum login. Silakan login terlebih dahulu.');
-            // Deteksi mobile device sederhana
-            if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                window.location.href = '?page=profile';
-            } else {
-                window.location.href = './';
-            }
+            Swal.fire({
+                title: 'Akses Ditolak',
+                text: 'Anda belum login. Silakan login terlebih dahulu.',
+                icon: 'warning',
+                confirmButtonText: 'Login Sekarang',
+                allowOutsideClick: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Deteksi mobile device sederhana
+                    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                        window.location.href = '?page=profile';
+                    } else {
+                        window.location.href = './';
+                    }
+                }
+            });
         </script>";
         return;
     }
@@ -10641,8 +10652,17 @@ function view_student_tasks()
     // Siswa bisa berupa role 'pelajar' atau user biasa dengan tipe 'Pelajar'
     if ($role !== 'pelajar' && !($role === 'user' && $user_type === 'Pelajar')) {
          echo "<script>
-            alert('Halaman ini khusus untuk siswa.');
-            window.location.href = './';
+            Swal.fire({
+                title: 'Akses Dibatasi',
+                text: 'Halaman ini khusus untuk siswa.',
+                icon: 'error',
+                confirmButtonText: 'Kembali ke Beranda',
+                allowOutsideClick: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = './';
+                }
+            });
         </script>";
         return;
     }
