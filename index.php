@@ -10805,6 +10805,10 @@ function view_monitor_jawaban()
             FROM draft_attempts da
             INNER JOIN quiz_sessions qs ON da.session_id = qs.id
             WHERE da.status = 'draft'
+            AND qs.id IN (
+                SELECT MAX(qs2.id) FROM quiz_sessions qs2 
+                GROUP BY qs2.user_id, qs2.title_id
+            )
             GROUP BY da.user_id, qs.title_id
         ) draft_data ON cm.id_pelajar = draft_data.user_id AND a.id_judul_soal = draft_data.title_id
         WHERE a.mode = 'exam'
