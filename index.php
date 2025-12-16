@@ -1623,6 +1623,10 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
  case 'student_tasks':
     view_student_tasks();
     break;
+  case 'monitor_jawaban':
+    if (is_pengajar() || is_admin()) view_monitor_jawaban();
+    else redirect('./');
+    break;
   default:
     echo '<div class="container py-5"><h3>404</h3></div>';
     break;
@@ -2860,6 +2864,7 @@ HTML;
     echo '    <li class="nav-item"><a class="nav-link" href="?page=kelola_user">Kelola User</a></li>';
     echo '    <li class="nav-item"><a class="nav-link" href="?page=broadcast">Broadcast</a></li>';
     echo '    <li class="nav-item"><a class="nav-link" href="?page=qmanage">Kelola Soal (CRUD)</a></li>';
+    echo '    <li class="nav-item"><a class="nav-link" href="?page=monitor_jawaban">📊 Monitor Jawaban</a></li>';
 
     // ▼▼▼ TAMBAHKAN BLOK BARU INI ▼▼▼
     // Tampilkan menu ini HANYA jika pengguna adalah Pengajar
@@ -2881,6 +2886,7 @@ if (($_SESSION['user']['role'] ?? '') === 'pengajar') {
       // Tampilkan menu untuk Pengajar
       echo '<li class="nav-item"><a class="nav-link" href="?page=kelola_institusi">Kelola Institusi & Kelas</a></li>';
       echo '<li class="nav-item"><a class="nav-link" href="?page=teacher_crud">Bank Soal Saya</a></li>';
+      echo '<li class="nav-item"><a class="nav-link" href="?page=monitor_jawaban">📊 Monitor Jawaban</a></li>';
     } elseif ($user_role === 'pelajar') {
       // ▼▼▼ INI MENU BARU UNTUK SISWA ▼▼▼
       echo '<li class="nav-item"><a class="nav-link" href="?page=student_tasks">Daftar Tugas</a></li>';
@@ -10633,6 +10639,115 @@ function view_kelola_kelas_siswa()
             }
         });
     </script>';
+}
+
+/**
+ * Halaman Monitor Jawaban - untuk Pengajar/Admin
+ * Menampilkan tabel jawaban yang dikirimkan oleh user
+ * Kolom: Nama, Sub Tema, Judul Soal, Jawaban Benar, Prosentase, Nilai Total
+ */
+function view_monitor_jawaban()
+{
+    // 1. Ambil parameter filter dari URL
+    $assignment_id = isset($_GET['assignment_id']) ? (int)$_GET['assignment_id'] : 0;
+    $title_id = isset($_GET['title_id']) ? (int)$_GET['title_id'] : 0;
+
+    // 2. Query data jawaban
+    $query = "
+        SELECT
+            u.id AS user_id,
+            u.name AS user_name,
+            u.no_induk,
+            st.name AS subtheme_name,
+            qt.title AS quiz_title,
+            r.score AS score_percentage,
+            COUNT(DISTINCT a.id) AS total_questions,
+            SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers,
+            asub.submitted_at
+        FROM assignment_submissions asub
+        JOIN results r ON asub.result_id = r.id
+        JOIN users u ON asub.user_id = u.id
+        JOIN quiz_titles qt ON r.title_id = qt.id
+        JOIN subthemes st ON qt.subtheme_id = st.id
+        LEFT JOIN attempts a ON r.session_id = a.session_id
+        WHERE 1=1
+    ";
+
+    $params = [];
+
+    // Filter berdasarkan assignment jika diberikan
+    if ($assignment_id > 0) {
+        $query .= " AND asub.assignment_id = ?";
+        $params[] = $assignment_id;
+    }
+
+    // Filter berdasarkan title jika diberikan
+    if ($title_id > 0) {
+        $query .= " AND r.title_id = ?";
+        $params[] = $title_id;
+    }
+
+    $query .= "
+        GROUP BY asub.id, u.id, u.name, u.no_induk, st.name, qt.title, r.score, asub.submitted_at
+        ORDER BY asub.submitted_at DESC
+    ";
+
+    $jawaban_data = q($query, $params)->fetchAll();
+
+    // 3. Display halaman
+    echo '<div class="container py-4">';
+    echo '<h3>📊 Monitor Jawaban User</h3>';
+    echo '<p class="text-muted">Tabel ringkasan jawaban yang telah dikirimkan oleh user</p>';
+
+    if (empty($jawaban_data)) {
+        echo '<div class="alert alert-info">Belum ada jawaban yang dikirimkan.</div>';
+        echo '</div>';
+        return;
+    }
+
+    // 4. Render tabel
+    echo '<div class="table-responsive">';
+    echo '<table class="table table-striped table-hover">';
+    echo '<thead class="table-dark">';
+    echo '<tr>';
+    echo '<th>Nama</th>';
+    echo '<th>No. Induk</th>';
+    echo '<th>Sub Tema</th>';
+    echo '<th>Judul Soal</th>';
+    echo '<th>Jawaban Benar</th>';
+    echo '<th>Prosentase</th>';
+    echo '<th>Nilai Total</th>';
+    echo '<th>Waktu Submit</th>';
+    echo '</tr>';
+    echo '</thead>';
+    echo '<tbody>';
+
+    foreach ($jawaban_data as $row) {
+        $jawaban_benar = (int)$row['correct_answers'];
+        $total_soal = (int)$row['total_questions'];
+        $prosentase = $total_soal > 0 ? round(($jawaban_benar / $total_soal) * 100, 2) : 0;
+        $nilai_total = (int)$row['score_percentage'];
+        $submitted_at = $row['submitted_at'] ? date('d-m-Y H:i:s', strtotime($row['submitted_at'])) : '-';
+
+        // Warna badge berdasarkan prosentase
+        $badge_class = $prosentase >= 75 ? 'bg-success' : ($prosentase >= 50 ? 'bg-warning' : 'bg-danger');
+
+        echo '<tr>';
+        echo '<td>' . h($row['user_name']) . '</td>';
+        echo '<td>' . h($row['no_induk'] ?? '-') . '</td>';
+        echo '<td>' . h($row['subtheme_name']) . '</td>';
+        echo '<td>' . h($row['quiz_title']) . '</td>';
+        echo '<td><span class="badge bg-info">' . $jawaban_benar . ' / ' . $total_soal . '</span></td>';
+        echo '<td><span class="badge ' . $badge_class . '">' . $prosentase . '%</span></td>';
+        echo '<td><strong>' . $nilai_total . '</strong></td>';
+        echo '<td><small>' . $submitted_at . '</small></td>';
+        echo '</tr>';
+    }
+
+    echo '</tbody>';
+    echo '</table>';
+    echo '</div>';
+    echo '</div>';
 }
 
 /**
