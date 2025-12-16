@@ -10843,16 +10843,11 @@ function view_monitor_jawaban()
     echo '<tbody>';
 
     $no = 1;
-    $prev_assignment_id = null;
+    // $prev_assignment_id = null; // Tidak diperlukan lagi karena DataTables handle sorting/paging
 
     foreach ($jawaban_data as $row) {
-        // Jika assignment berubah, kasih separator visual
-        if ($prev_assignment_id !== null && $prev_assignment_id !== $row['assignment_id']) {
-            echo '<tr class="table-active"><td colspan="11"><strong style="color: var(--bs-primary)">📋 ' . h($row['judul_tugas']) . '</strong></td></tr>';
-            $no = 1;
-        }
-        $prev_assignment_id = $row['assignment_id'];
-
+        // Hapus separator row agar kompatibel dengan DataTables
+        
         // Gunakan data yang sesuai dengan status
         if ($row['status'] === 'Sudah Submit') {
             // Setelah submit: gunakan data dari results
@@ -10908,7 +10903,9 @@ function view_monitor_jawaban()
             echo '<td><strong>' . $nilai_total . '</strong></td>';
         } else {
             // Tidak ada data jawaban sama sekali
-            echo '<td colspan="3" class="text-center text-muted">-</td>';
+            echo '<td class="text-center text-muted">-</td>';
+            echo '<td class="text-center text-muted">-</td>';
+            echo '<td class="text-center text-muted">-</td>';
         }
         
         echo '<td><small>' . $submitted_at . '</small></td>';
