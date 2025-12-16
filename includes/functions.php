@@ -82,7 +82,7 @@ if (!function_exists('http_get_json')) {
       $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
       curl_close($ch);
       if ($err || $code < 200 || $code >= 300 || !$res) {
-          error_log("http_get_json Error: $err (Code: $code) URL: $url");
+          echo "Debug: http_get_json Error: $err (Code: $code) URL: $url <br>";
           return null;
       }
       $data = json_decode($res, true);
@@ -482,7 +482,7 @@ function verify_google_id_token($idToken)
 {
   global $CONFIG;
   if (!$idToken) {
-      error_log("Google Login Error: No ID Token provided.");
+      echo "Debug: No ID Token provided.<br>";
       return null;
   }
 
@@ -492,7 +492,7 @@ function verify_google_id_token($idToken)
   // Pakai helper cURL stabil (HTTP/1.1, SSL verify ON). Set param 3 = true jika Anda menaruh cacert.pem lokal.
   $data = http_get_json($url, 7 /*timeout*/, false /*force_local_cacert*/);
   if (!$data) {
-      error_log("Google Login Error: Failed to fetch token info from Google. URL: $url");
+      echo "Debug: Failed to fetch token info from Google. URL: $url <br>";
       return null;
   }
 
@@ -501,14 +501,14 @@ function verify_google_id_token($idToken)
   $configClientId = $CONFIG['GOOGLE_CLIENT_ID'] ?? '';
   
   if ($aud !== $configClientId) {
-      error_log("Google Login Error: Audience mismatch. Received: '$aud', Expected: '$configClientId'");
+      echo "Debug: Audience mismatch. Received: '$aud', Expected: '$configClientId'<br>";
       return null;
   }
 
- // Email verified harus true (kadang string 'true' atau boolean true)
+  // Email verified harus true (kadang string 'true' atau boolean true)
   $ev = $data['email_verified'] ?? '';
   if (!($ev === true || $ev === 'true' || $ev === 1 || $ev === '1')) {
-      error_log("Google Login Error: Email not verified. Value: " . var_export($ev, true));
+      echo "Debug: Email not verified. Value: " . var_export($ev, true) . "<br>";
       return null;
   }
 
