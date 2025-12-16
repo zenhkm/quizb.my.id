@@ -94,7 +94,7 @@ SELECT
     a.judul_tugas,
     CASE 
         WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
-        WHEN da.id IS NOT NULL THEN 'Sedang Mengerjakan'
+        WHEN da.user_id IS NOT NULL THEN 'Sedang Mengerjakan'
         ELSE 'Belum Submit'
     END AS status,
     asub.submitted_at,
@@ -105,10 +105,9 @@ INNER JOIN assignments a ON a.id_kelas = cm.id_kelas
 LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND cm.id_pelajar = asub.user_id
 LEFT JOIN results r ON asub.result_id = r.id
 LEFT JOIN (
-    SELECT user_id, MAX(updated_at) as latest_draft
+    SELECT DISTINCT user_id
     FROM draft_attempts 
     WHERE status = 'draft'
-    GROUP BY user_id
 ) da ON da.user_id = cm.id_pelajar
 WHERE a.mode = 'ujian'
 ORDER BY a.id, cm.id_pelajar
