@@ -10833,17 +10833,14 @@ function view_monitor_jawaban()
         LEFT JOIN (
             SELECT 
                 da.user_id,
+                qs.id as session_id,
                 qs.title_id,
                 COUNT(DISTINCT da.question_id) as attempt_count,
                 COUNT(DISTINCT CASE WHEN da.is_correct = 1 THEN da.question_id END) as correct_count
             FROM draft_attempts da
             INNER JOIN quiz_sessions qs ON da.session_id = qs.id
             WHERE da.status = 'draft'
-            AND qs.id IN (
-                SELECT MAX(qs2.id) FROM quiz_sessions qs2 
-                GROUP BY qs2.user_id, qs2.title_id
-            )
-            GROUP BY da.user_id, qs.title_id
+            GROUP BY da.user_id, qs.id, qs.title_id
         ) draft_data ON cm.id_pelajar = draft_data.user_id AND a.id_judul_soal = draft_data.title_id
         WHERE a.mode = 'exam' AND a.id_pengajar = ?
     ";
@@ -10950,17 +10947,18 @@ function view_monitor_jawaban()
     echo '<table class="table table-striped table-hover table-sm">';
     echo '<thead class="table-dark sticky-top">';
     echo '<tr>';
-    echo '<th style="width: 5%">No</th>';
-    echo '<th style="width: 15%">Nama Siswa</th>';
-    echo '<th style="width: 12%">Sekolah</th>';
-    echo '<th style="width: 10%">Kelas</th>';
-    echo '<th style="width: 15%">Tugas</th>';
-    echo '<th style="width: 8%">Status</th>';
-    echo '<th style="width: 8%">Benar</th>';
-    echo '<th style="width: 8%">%</th>';
-    echo '<th style="width: 6%">Nilai</th>';
-    echo '<th style="width: 10%">Waktu Submit</th>';
-    echo '<th style="width: 12%">Batas Waktu</th>';
+    echo '<th style="width: 3%">No</th>';
+    echo '<th style="width: 12%">Nama Siswa</th>';
+    echo '<th style="width: 10%">Sekolah</th>';
+    echo '<th style="width: 8%">Kelas</th>';
+    echo '<th style="width: 12%">Tugas</th>';
+    echo '<th style="width: 6%">Status</th>';
+    echo '<th style="width: 7%">Benar</th>';
+    echo '<th style="width: 7%">%</th>';
+    echo '<th style="width: 5%">Nilai</th>';
+    echo '<th style="width: 8%">Waktu Submit</th>';
+    echo '<th style="width: 10%">Batas Waktu</th>';
+    echo '<th style="width: 8%">Session</th>';
     echo '</tr>';
     echo '</thead>';
     echo '<tbody>';
@@ -11036,6 +11034,7 @@ function view_monitor_jawaban()
         
         echo '<td><small>' . $submitted_at . '</small></td>';
         echo '<td><small>' . $batas_waktu . '</small></td>';
+        echo '<td><small><code>#' . ($row['result_id'] ?? ($row['attempt_count'] > 0 ? 'Draft' : '-')) . '</code></small></td>';
         echo '</tr>';
     }
 
