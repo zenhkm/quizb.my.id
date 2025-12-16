@@ -10653,31 +10653,33 @@ function view_monitor_jawaban()
     $title_id = isset($_GET['title_id']) ? (int)$_GET['title_id'] : 0;
     $kelas_id = isset($_GET['kelas_id']) ? (int)$_GET['kelas_id'] : 0;
 
-    // 2. Query LENGKAP: Siswa yang sudah submit + belum submit
+    // 2. Query LENGKAP dengan logic yang lebih akurat - menggunakan GROUP_CONCAT untuk melihat semua data
     $query = "
         SELECT
             cm.id_pelajar AS user_id,
             u.name AS user_name,
             u.nama_sekolah,
             u.nama_kelas,
+            a.id AS assignment_id,
+            a.judul_tugas,
             st.name AS subtheme_name,
             qt.title AS quiz_title,
-            a.judul_tugas,
-            COALESCE(r.score, -1) AS score_percentage,
-            COALESCE(COUNT(DISTINCT att.id), 0) AS total_questions,
-            COALESCE(SUM(CASE WHEN att.is_correct = 1 THEN 1 ELSE 0 END), 0) AS correct_answers,
-            COALESCE(asub.submitted_at, NULL) AS submitted_at,
+            MAX(r.score) AS score_percentage,
+            COUNT(DISTINCT att.id) AS total_questions,
+            SUM(CASE WHEN att.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers,
+            MAX(asub.submitted_at) AS submitted_at,
+            MAX(r.id) AS result_id,
+            a.batas_waktu,
+            a.mode,
             CASE 
                 WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
                 ELSE 'Belum Submit'
-            END AS status,
-            a.batas_waktu,
-            a.mode
+            END AS status
         FROM class_members cm
-        JOIN users u ON cm.id_pelajar = u.id
-        JOIN assignments a ON a.id_kelas = cm.id_kelas
-        JOIN quiz_titles qt ON a.id_judul_soal = qt.id
-        JOIN subthemes st ON qt.subtheme_id = st.id
+        INNER JOIN users u ON cm.id_pelajar = u.id
+        INNER JOIN assignments a ON a.id_kelas = cm.id_kelas
+        INNER JOIN quiz_titles qt ON a.id_judul_soal = qt.id
+        INNER JOIN subthemes st ON qt.subtheme_id = st.id
         LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND cm.id_pelajar = asub.user_id
         LEFT JOIN results r ON asub.result_id = r.id
         LEFT JOIN attempts att ON r.session_id = att.session_id
@@ -10705,8 +10707,8 @@ function view_monitor_jawaban()
     }
 
     $query .= "
-        GROUP BY cm.id_pelajar, a.id, u.id, u.name, u.nama_sekolah, u.nama_kelas, st.name, qt.title, a.judul_tugas, r.score, asub.submitted_at, asub.id, a.batas_waktu, a.mode
-        ORDER BY a.created_at DESC, status ASC, u.name ASC
+        GROUP BY cm.id_pelajar, a.id, u.id
+        ORDER BY a.created_at DESC, a.id DESC, FIELD(status, 'Belum Submit', 'Sudah Submit'), u.name ASC
     ";
 
     $jawaban_data = q($query, $params)->fetchAll();
@@ -10714,10 +10716,10 @@ function view_monitor_jawaban()
     // 3. Display halaman
     echo '<div class="container py-4">';
     echo '<h3>📊 Monitor Jawaban & Status Pengerjaan</h3>';
-    echo '<p class="text-muted">Tabel lengkap status pengerjaan siswa - baik yang sudah submit maupun belum</p>';
+    echo '<p class="text-muted">Tabel lengkap status pengerjaan siswa - data diambil dari tabel <strong>assignment_submissions</strong> dan <strong>attempts</strong></p>';
 
     if (empty($jawaban_data)) {
-        echo '<div class="alert alert-info">Data tidak ditemukan.</div>';
+        echo '<div class="alert alert-warning">Data tidak ditemukan. Pastikan ada assignment dan siswa terdaftar di kelas.</div>';
         echo '</div>';
         return;
     }
@@ -10725,89 +10727,120 @@ function view_monitor_jawaban()
     // 4. Statistik ringkas
     $submitted_count = 0;
     $not_submitted_count = 0;
+    $avg_score = 0;
+    $score_sum = 0;
+    $submitted_with_score = 0;
+
     foreach ($jawaban_data as $row) {
-        if ($row['status'] === 'Sudah Submit') $submitted_count++;
-        else $not_submitted_count++;
+        if ($row['status'] === 'Sudah Submit') {
+            $submitted_count++;
+            if ($row['score_percentage'] !== null) {
+                $score_sum += (int)$row['score_percentage'];
+                $submitted_with_score++;
+            }
+        } else {
+            $not_submitted_count++;
+        }
     }
 
+    $avg_score = $submitted_with_score > 0 ? round($score_sum / $submitted_with_score, 2) : 0;
+
     echo '<div class="row mb-4">';
-    echo '<div class="col-md-4">';
+    echo '<div class="col-md-3">';
     echo '<div class="card border-success">';
     echo '<div class="card-body text-center">';
     echo '<h5 class="card-title">✅ Sudah Submit</h5>';
     echo '<h3 class="text-success">' . $submitted_count . '</h3>';
     echo '</div></div></div>';
     
-    echo '<div class="col-md-4">';
+    echo '<div class="col-md-3">';
     echo '<div class="card border-warning">';
     echo '<div class="card-body text-center">';
     echo '<h5 class="card-title">⏳ Belum Submit</h5>';
     echo '<h3 class="text-warning">' . $not_submitted_count . '</h3>';
     echo '</div></div></div>';
 
-    echo '<div class="col-md-4">';
+    echo '<div class="col-md-3">';
     echo '<div class="card border-info">';
     echo '<div class="card-body text-center">';
     echo '<h5 class="card-title">📝 Total Siswa</h5>';
     echo '<h3 class="text-info">' . count($jawaban_data) . '</h3>';
     echo '</div></div></div>';
+
+    echo '<div class="col-md-3">';
+    echo '<div class="card border-primary">';
+    echo '<div class="card-body text-center">';
+    echo '<h5 class="card-title">📈 Rata-rata</h5>';
+    echo '<h3 class="text-primary">' . $avg_score . '%</h3>';
+    echo '</div></div></div>';
     echo '</div>';
 
     // 5. Render tabel
     echo '<div class="table-responsive">';
-    echo '<table class="table table-striped table-hover">';
-    echo '<thead class="table-dark">';
+    echo '<table class="table table-striped table-hover table-sm">';
+    echo '<thead class="table-dark sticky-top">';
     echo '<tr>';
-    echo '<th>Nama</th>';
-    echo '<th>Sekolah</th>';
-    echo '<th>Kelas</th>';
-    echo '<th>Tugas</th>';
-    echo '<th>Status</th>';
-    echo '<th>Jawaban Benar</th>';
-    echo '<th>Prosentase</th>';
-    echo '<th>Nilai</th>';
-    echo '<th>Waktu Submit</th>';
-    echo '<th>Batas Waktu</th>';
+    echo '<th style="width: 5%">No</th>';
+    echo '<th style="width: 15%">Nama Siswa</th>';
+    echo '<th style="width: 12%">Sekolah</th>';
+    echo '<th style="width: 10%">Kelas</th>';
+    echo '<th style="width: 15%">Tugas</th>';
+    echo '<th style="width: 8%">Status</th>';
+    echo '<th style="width: 8%">Benar</th>';
+    echo '<th style="width: 8%">%</th>';
+    echo '<th style="width: 6%">Nilai</th>';
+    echo '<th style="width: 10%">Waktu Submit</th>';
+    echo '<th style="width: 12%">Batas Waktu</th>';
     echo '</tr>';
     echo '</thead>';
     echo '<tbody>';
 
+    $no = 1;
+    $prev_assignment_id = null;
+
     foreach ($jawaban_data as $row) {
+        // Jika assignment berubah, kasih separator visual
+        if ($prev_assignment_id !== null && $prev_assignment_id !== $row['assignment_id']) {
+            echo '<tr class="table-active"><td colspan="11"><strong style="color: var(--bs-primary)">📋 ' . h($row['judul_tugas']) . '</strong></td></tr>';
+            $no = 1;
+        }
+        $prev_assignment_id = $row['assignment_id'];
+
         $jawaban_benar = (int)$row['correct_answers'];
         $total_soal = (int)$row['total_questions'];
-        $prosentase = $total_soal > 0 ? round(($jawaban_benar / $total_soal) * 100, 2) : 0;
-        $nilai_total = $row['score_percentage'] >= 0 ? (int)$row['score_percentage'] : '-';
+        $prosentase = $total_soal > 0 && $row['status'] === 'Sudah Submit' ? round(($jawaban_benar / $total_soal) * 100, 2) : 0;
+        $nilai_total = $row['score_percentage'] !== null ? (int)$row['score_percentage'] : '-';
         $submitted_at = $row['submitted_at'] ? date('d-m-Y H:i', strtotime($row['submitted_at'])) : '-';
         $batas_waktu = $row['batas_waktu'] ? date('d-m-Y H:i', strtotime($row['batas_waktu'])) : 'Tidak ada';
 
         // Warna badge berdasarkan status
         if ($row['status'] === 'Sudah Submit') {
-            $status_badge = '<span class="badge bg-success">✅ Sudah Submit</span>';
+            $status_badge = '<span class="badge bg-success">✅ Submit</span>';
             $badge_class = $prosentase >= 75 ? 'bg-success' : ($prosentase >= 50 ? 'bg-warning' : 'bg-danger');
         } else {
-            $status_badge = '<span class="badge bg-warning text-dark">⏳ Belum Submit</span>';
+            $status_badge = '<span class="badge bg-warning text-dark">⏳ Belum</span>';
             $badge_class = 'bg-secondary';
-        }
 
-        // Cek apakah sudah terlewat deadline
-        $deadline_status = '';
-        if ($row['batas_waktu'] && $row['status'] === 'Belum Submit') {
-            $deadline = strtotime($row['batas_waktu']);
-            $now = time();
-            if ($now > $deadline) {
-                $status_badge = '<span class="badge bg-danger">❌ Terlambat</span>';
+            // Cek deadline
+            if ($row['batas_waktu']) {
+                $deadline = strtotime($row['batas_waktu']);
+                $now = time();
+                if ($now > $deadline) {
+                    $status_badge = '<span class="badge bg-danger">❌ Terlambat</span>';
+                }
             }
         }
 
         echo '<tr>';
+        echo '<td>' . $no++ . '</td>';
         echo '<td><strong>' . h($row['user_name']) . '</strong></td>';
         echo '<td><small>' . h($row['nama_sekolah'] ?? '-') . '</small></td>';
         echo '<td><small>' . h($row['nama_kelas'] ?? '-') . '</small></td>';
-        echo '<td><small>' . h($row['judul_tugas']) . '</small></td>';
+        echo '<td><small title="' . h($row['judul_tugas']) . '">' . h(substr($row['judul_tugas'], 0, 18)) . '...</small></td>';
         echo '<td>' . $status_badge . '</td>';
         
-        if ($row['status'] === 'Sudah Submit') {
-            echo '<td><span class="badge bg-info">' . $jawaban_benar . ' / ' . $total_soal . '</span></td>';
+        if ($row['status'] === 'Sudah Submit' && $total_soal > 0) {
+            echo '<td><span class="badge bg-info">' . $jawaban_benar . '/' . $total_soal . '</span></td>';
             echo '<td><span class="badge ' . $badge_class . '">' . $prosentase . '%</span></td>';
             echo '<td><strong>' . $nilai_total . '</strong></td>';
         } else {
@@ -10822,6 +10855,16 @@ function view_monitor_jawaban()
     echo '</tbody>';
     echo '</table>';
     echo '</div>';
+    
+    echo '<div class="alert alert-info mt-3 small">';
+    echo '<strong>ℹ️ Informasi:</strong><br>';
+    echo '• <strong>Status Sudah Submit:</strong> Siswa telah menyelesaikan kuis dan menekan tombol "Selesaikan Ujian"<br>';
+    echo '• <strong>Benar:</strong> Jumlah jawaban yang benar / total soal<br>';
+    echo '• <strong>%:</strong> Prosentase benar dari total soal<br>';
+    echo '• <strong>Nilai:</strong> Skor akhir (0-100)<br>';
+    echo '• Data diambil dari: <code>assignment_submissions</code> + <code>attempts</code> + <code>results</code>';
+    echo '</div>';
+    
     echo '</div>';
 }
 
