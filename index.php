@@ -10689,6 +10689,8 @@ function view_monitor_jawaban()
             r.score AS score_percentage,
             a.batas_waktu,
             a.mode,
+            a.jumlah_soal,
+            COALESCE(q_count.total_questions_in_title, 0) AS total_questions_in_title,
             CASE 
                 WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
                 WHEN session_data.total_questions > 0 AND asub.id IS NULL THEN 'Sedang Mengerjakan'
@@ -10702,6 +10704,11 @@ function view_monitor_jawaban()
         INNER JOIN subthemes st ON qt.subtheme_id = st.id
         LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND u.id = asub.user_id
         LEFT JOIN results r ON asub.result_id = r.id AND r.session_id = qs.id
+        LEFT JOIN (
+            SELECT title_id, COUNT(*) as total_questions_in_title
+            FROM questions
+            GROUP BY title_id
+        ) q_count ON qt.id = q_count.title_id
         LEFT JOIN (
             SELECT 
                 user_id,
@@ -10849,17 +10856,23 @@ function view_monitor_jawaban()
         // Hapus separator row agar kompatibel dengan DataTables
         
         // Gunakan data yang sesuai dengan status
+        $total_soal_ditugaskan = (int)$row['jumlah_soal'];
+        $total_soal_real = (int)$row['total_questions_in_title'];
+        $denominator = $total_soal_ditugaskan > 0 ? $total_soal_ditugaskan : $total_soal_real;
+
         if ($row['status'] === 'Sudah Submit') {
             // Setelah submit: gunakan data dari results
             $jawaban_benar = (int)$row['correct_answers_submitted'];
-            $total_soal = (int)$row['total_questions_submitted'];
-            $prosentase = $total_soal > 0 ? round(($jawaban_benar / $total_soal) * 100, 2) : 0;
+            $total_soal = (int)$row['total_questions_submitted']; // Ini total yang dikerjakan
+            // Prosentase dari seluruh soal yang ditugaskan
+            $prosentase = $denominator > 0 ? round(($jawaban_benar / $denominator) * 100, 2) : 0;
             $nilai_total = $row['score_percentage'] !== null ? (int)$row['score_percentage'] : '-';
         } else {
             // Sedang mengerjakan atau belum mulai: gunakan data dari attempts
             $jawaban_benar = (int)$row['correct_answers_attempted'];
-            $total_soal = (int)$row['total_questions_attempted'];
-            $prosentase = $total_soal > 0 ? round(($jawaban_benar / $total_soal) * 100, 2) : 0;
+            $total_soal = (int)$row['total_questions_attempted']; // Ini total yang dikerjakan
+            // Prosentase dari seluruh soal yang ditugaskan
+            $prosentase = $denominator > 0 ? round(($jawaban_benar / $denominator) * 100, 2) : 0;
             $nilai_total = '-';
         }
 
@@ -10896,9 +10909,9 @@ function view_monitor_jawaban()
         echo '<td>' . $status_badge . '</td>';
         
         // Tampilkan data benar/nilai untuk SEMUA status (kecuali "Belum Submit" tanpa data)
-        if ($total_soal > 0) {
+        if ($total_soal > 0 || $row['status'] === 'Sudah Submit') {
             // Ada data jawaban (baik submitted maupun draft)
-            echo '<td><span class="badge bg-info">' . $jawaban_benar . '/' . $total_soal . '</span></td>';
+            echo '<td><span class="badge bg-info">' . $jawaban_benar . '/' . $denominator . '</span></td>';
             echo '<td><span class="badge ' . $badge_class . '">' . $prosentase . '%</span></td>';
             echo '<td><strong>' . $nilai_total . '</strong></td>';
         } else {
