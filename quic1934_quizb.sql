@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Waktu pembuatan: 16 Des 2025 pada 09.20
+-- Waktu pembuatan: 17 Des 2025 pada 00.57
 -- Versi server: 11.4.8-MariaDB-cll-lve
 -- Versi PHP: 8.4.15
 
@@ -67,6 +67,7 @@ CREATE TABLE `attempts` (
   `question_id` int(11) NOT NULL,
   `choice_id` int(11) NOT NULL,
   `is_correct` tinyint(1) NOT NULL,
+  `from_draft` tinyint(1) DEFAULT 0 COMMENT 'Apakah attempt ini dari draft (1) atau langsung submit (0)',
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -165,6 +166,24 @@ CREATE TABLE `class_members` (
   `id_kelas` int(11) NOT NULL,
   `id_pelajar` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Struktur dari tabel `draft_attempts`
+--
+
+CREATE TABLE `draft_attempts` (
+  `id` int(11) NOT NULL,
+  `session_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `question_id` int(11) NOT NULL,
+  `choice_id` int(11) NOT NULL,
+  `is_correct` tinyint(1) NOT NULL DEFAULT 0,
+  `status` enum('draft','submitted') NOT NULL DEFAULT 'draft' COMMENT 'draft=belum submit, submitted=sudah submit',
+  `saved_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='Menyimpan draft jawaban siswa sebelum submit (auto-saved)';
 
 -- --------------------------------------------------------
 
@@ -508,6 +527,19 @@ ALTER TABLE `class_members`
   ADD KEY `id_pelajar` (`id_pelajar`);
 
 --
+-- Indeks untuk tabel `draft_attempts`
+--
+ALTER TABLE `draft_attempts`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_draft` (`session_id`,`question_id`),
+  ADD KEY `idx_session_user` (`session_id`,`user_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `fk_draft_attempts_question` (`question_id`),
+  ADD KEY `idx_session_status` (`session_id`,`status`),
+  ADD KEY `idx_updated_at` (`updated_at`);
+
+--
 -- Indeks untuk tabel `feedbacks`
 --
 ALTER TABLE `feedbacks`
@@ -677,6 +709,12 @@ ALTER TABLE `classes`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT untuk tabel `draft_attempts`
+--
+ALTER TABLE `draft_attempts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT untuk tabel `feedbacks`
 --
 ALTER TABLE `feedbacks`
@@ -801,6 +839,14 @@ ALTER TABLE `challenge_runs`
 --
 ALTER TABLE `choices`
   ADD CONSTRAINT `choices_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`) ON DELETE CASCADE;
+
+--
+-- Ketidakleluasaan untuk tabel `draft_attempts`
+--
+ALTER TABLE `draft_attempts`
+  ADD CONSTRAINT `fk_draft_attempts_question` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_draft_attempts_session` FOREIGN KEY (`session_id`) REFERENCES `quiz_sessions` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_draft_attempts_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Ketidakleluasaan untuk tabel `messages`
