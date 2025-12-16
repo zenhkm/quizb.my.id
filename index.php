@@ -10985,11 +10985,14 @@ function view_monitor_jawaban()
         echo '<td><small title="' . h($row['judul_tugas']) . '">' . h(substr($row['judul_tugas'], 0, 18)) . '...</small></td>';
         echo '<td>' . $status_badge . '</td>';
         
-        if ($row['status'] === 'Sudah Submit' && $total_soal > 0) {
+        // Tampilkan data benar/nilai untuk SEMUA status (kecuali "Belum Submit" tanpa data)
+        if ($total_soal > 0) {
+            // Ada data jawaban (baik submitted maupun draft)
             echo '<td><span class="badge bg-info">' . $jawaban_benar . '/' . $total_soal . '</span></td>';
             echo '<td><span class="badge ' . $badge_class . '">' . $prosentase . '%</span></td>';
             echo '<td><strong>' . $nilai_total . '</strong></td>';
         } else {
+            // Tidak ada data jawaban sama sekali
             echo '<td colspan="3" class="text-center text-muted">-</td>';
         }
         
