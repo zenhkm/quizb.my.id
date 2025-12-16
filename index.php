@@ -1626,10 +1626,7 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
  case 'student_tasks':
     view_student_tasks();
     break;
-  case 'monitor_jawaban':
-    if (is_pengajar() || is_admin()) view_monitor_jawaban();
-    else redirect('./');
-    break;
+
   default:
     echo '<div class="container py-5"><h3>404</h3></div>';
     break;
@@ -2969,7 +2966,6 @@ if (($_SESSION['user']['role'] ?? '') === 'pengajar') {
       // Tampilkan menu untuk Pengajar
       echo '<li class="nav-item"><a class="nav-link" href="?page=kelola_institusi">Kelola Institusi & Kelas</a></li>';
       echo '<li class="nav-item"><a class="nav-link" href="?page=teacher_crud">Bank Soal Saya</a></li>';
-      echo '<li class="nav-item"><a class="nav-link" href="?page=monitor_jawaban">📊 Monitor Jawaban</a></li>';
     } elseif ($user_role === 'pelajar') {
       // ▼▼▼ INI MENU BARU UNTUK SISWA ▼▼▼
       echo '<li class="nav-item"><a class="nav-link" href="?page=student_tasks">Daftar Tugas</a></li>';
