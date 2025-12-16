@@ -678,11 +678,7 @@ function get_choices_by_ids_in_order(array $ids)
   return $out;
 }
 
-function get_shuffled_choices_cached($question_id, $session_id)
-{
-  $ids = get_shuffled_choice_ids($question_id, $session_id);
-  return get_choices_by_ids_in_order($ids);
-}
+
 
 
 if (isset($_GET['action'])) {
@@ -7074,45 +7070,7 @@ $examTimerMins = $assignment_settings['durasi_ujian'] ?? user_exam_timer_minutes
             finishQuiz();
         }
         
-        function showReviewAndFinish(result) {
-            const question = quizState.questions[quizState.currentQuestionIndex];
-            const statusText = result.wasTimeout ? 'Waktu Habis ⏰' : 'Jawaban Salah ❌';
-            const statusClass = 'danger';
-            let choicesHTML = '';
-            question.choices.forEach(choice => {
-                let itemClass = 'list-group-item';
-                let note = '';
-                if (choice.is_correct) {
-                    itemClass += ' list-group-item-success';
-                    note = ' <small class="text-muted">— Jawaban benar</small>';
-                } else if (choice.id === result.selectedChoiceId) {
-                    itemClass += ' list-group-item-danger';
-                    note = ' <small class="text-muted">— Pilihan Anda</small>';
-                }
-                choicesHTML += `<li class="\${itemClass}">\${escapeHTML(choice.text)}\${note}</li>`;
-            });
-            let explanationHTML = '';
-            if (question.explanation) {
-                explanationHTML = `
-                <div class="alert alert-secondary mt-3">
-                    <strong>Penjelasan:</strong>
-                    <p class="mb-0">\${escapeHTML(question.explanation)}</p>
-                </div>`;
-            }
-            appContainer.innerHTML = `
-                <div class="quiz-container">
-                    <h4 class="h5">\${escapeHTML(quizState.title)}</h4>
-                     <div class="alert alert-\${statusClass}">\${statusText}</div>
-                    <div class="card">
-                        <div class="card-header"><strong>Soal:</strong> \${escapeHTML(question.text)}</div>
-                        <ul class="list-group list-group-flush">\${choicesHTML}</ul>
-                    </div>
-                    \${explanationHTML}
-                    <div class="text-center mt-4"><button id="finishButton" class="btn btn-primary btn-lg">Lihat Ringkasan Akhir</button></div>
-                </div>
-            `;
-            document.getElementById('finishButton').addEventListener('click', finishQuiz);
-        }
+
 
         async function finishQuiz() {
             clearInterval(quizState.examTimerInterval);
@@ -12503,14 +12461,7 @@ function verify_google_id_token($idToken)
   // Validasi minimal yang aman
   if (($data['aud'] ?? '') !== ($CONFIG['GOOGLE_CLIENT_ID'] ?? '')) return null;
 
-  // Issuer Google yang valid
-  $iss = $data['iss'] ?? '';
-  if ($iss !== 'accounts.google.com' && $iss !== 'https://accounts.google.com') return null;
-
-  // Expired check (jaga-jaga jika tokeninfo tetap mengembalikan data)
-  if (isset($data['exp']) && (int)$data['exp'] < time()) return null;
-
-  // Email verified harus true (kadang string 'true' atau boolean true)
+ // Email verified harus true (kadang string 'true' atau boolean true)
   $ev = $data['email_verified'] ?? '';
   if (!($ev === true || $ev === 'true' || $ev === 1 || $ev === '1')) return null;
 
