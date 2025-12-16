@@ -10846,7 +10846,6 @@ function view_monitor_jawaban()
                 COUNT(DISTINCT att.question_id) as total_questions,
                 COUNT(DISTINCT CASE WHEN att.is_correct = 1 THEN att.question_id END) as correct_answers
             FROM attempts att
-            WHERE att.is_final = 1
             GROUP BY att.session_id
         ) submitted_data ON qs.id = submitted_data.session_id
         WHERE a.id_pengajar = ?
