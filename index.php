@@ -10832,6 +10832,7 @@ function view_monitor_jawaban()
             SELECT 
                 user_id,
                 session_id,
+                COUNT(DISTINCT question_id) as total_questions,
                 COUNT(DISTINCT CASE WHEN is_correct = 1 THEN question_id END) as correct_answers
             FROM draft_attempts
             WHERE status = 'draft'
