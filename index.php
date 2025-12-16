@@ -10776,18 +10776,18 @@ function view_monitor_jawaban()
             MAX(r.score) AS score_percentage,
             COUNT(DISTINCT att.id) AS total_questions_submitted,
             SUM(CASE WHEN att.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers_submitted,
-            COALESCE(has_attempts.attempt_count, 0) AS total_questions_attempted,
-            COALESCE(has_attempts.correct_count, 0) AS correct_answers_attempted,
+            COALESCE(draft_data.attempt_count, 0) AS total_questions_attempted,
+            COALESCE(draft_data.correct_count, 0) AS correct_answers_attempted,
             MAX(asub.submitted_at) AS submitted_at,
             MAX(r.id) AS result_id,
             a.batas_waktu,
             a.mode,
             CASE 
                 WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
-                WHEN has_attempts.attempt_count > 0 THEN 'Sedang Mengerjakan'
+                WHEN draft_data.attempt_count > 0 THEN 'Sedang Mengerjakan'
                 ELSE 'Belum Submit'
             END AS status,
-            COALESCE(has_attempts.attempt_count, 0) as attempt_count
+            COALESCE(draft_data.attempt_count, 0) as attempt_count
         FROM class_members cm
         INNER JOIN users u ON cm.id_pelajar = u.id
         INNER JOIN assignments a ON a.id_kelas = cm.id_kelas
@@ -10798,15 +10798,15 @@ function view_monitor_jawaban()
         LEFT JOIN attempts att ON r.session_id = att.session_id
         LEFT JOIN (
             SELECT 
-                qs.user_id,
+                da.user_id,
                 qs.title_id,
-                COUNT(DISTINCT att.id) as attempt_count,
-                SUM(CASE WHEN att.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
-            FROM attempts att
-            INNER JOIN quiz_sessions qs ON att.session_id = qs.id
-            WHERE qs.user_id IS NOT NULL
-            GROUP BY qs.user_id, qs.title_id
-        ) has_attempts ON cm.id_pelajar = has_attempts.user_id AND a.id_judul_soal = has_attempts.title_id
+                COUNT(DISTINCT da.id) as attempt_count,
+                SUM(CASE WHEN da.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
+            FROM draft_attempts da
+            INNER JOIN quiz_sessions qs ON da.session_id = qs.id
+            WHERE da.status = 'draft'
+            GROUP BY da.user_id, qs.title_id
+        ) draft_data ON cm.id_pelajar = draft_data.user_id AND a.id_judul_soal = draft_data.title_id
         WHERE a.mode = 'exam'
     ";
 
