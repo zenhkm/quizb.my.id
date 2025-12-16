@@ -10800,7 +10800,8 @@ function view_monitor_jawaban()
             SELECT 
                 qs.user_id,
                 qs.title_id,
-                COUNT(DISTINCT att.id) as attempt_count
+                COUNT(DISTINCT att.id) as attempt_count,
+                SUM(CASE WHEN att.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
             FROM attempts att
             INNER JOIN quiz_sessions qs ON att.session_id = qs.id
             WHERE qs.user_id IS NOT NULL
