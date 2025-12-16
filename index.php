@@ -6968,6 +6968,25 @@ $examTimerMins = $assignment_settings['durasi_ujian'] ?? user_exam_timer_minutes
                 is_correct: selectedButton.dataset.isCorrect === 'true'
             });
             updateExamProgress();
+            
+            // ▼▼▼ AUTO-ADVANCE KE SOAL BERIKUTNYA (MODE UJIAN) ▼▼▼
+            const totalQuestions = quizState.questions.length;
+            const nextIndex = quizState.currentQuestionIndex + 1;
+            
+            // Disable semua pilihan jawaban untuk mencegah klik ganda
+            appContainer.querySelectorAll('.quiz-choice-item').forEach(btn => btn.disabled = true);
+            
+            // Tunggu 300ms, lalu lanjut ke soal berikutnya atau selesaikan ujian
+            setTimeout(() => {
+                if (nextIndex >= totalQuestions) {
+                    // Jika ini soal terakhir, tampilkan konfirmasi sebelum selesai
+                    confirmFinish();
+                } else {
+                    // Lanjut ke soal berikutnya
+                    renderQuestion(nextIndex);
+                }
+            }, 300);
+            // ▲▲▲ AKHIR AUTO-ADVANCE ▲▲▲
         }
 
         function updateExamProgress() {
