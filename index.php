@@ -10774,8 +10774,8 @@ function view_monitor_jawaban()
             st.name AS subtheme_name,
             qt.title AS quiz_title,
             MAX(r.score) AS score_percentage,
-            COUNT(DISTINCT att.id) AS total_questions_submitted,
-            SUM(CASE WHEN att.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers_submitted,
+            SUM(CASE WHEN att_submitted.id IS NOT NULL AND att_submitted.is_correct = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT att_submitted.id), 0) as total_questions_submitted,
+            SUM(CASE WHEN att_submitted.id IS NOT NULL AND att_submitted.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers_submitted,
             COALESCE(draft_data.attempt_count, 0) AS total_questions_attempted,
             COALESCE(draft_data.correct_count, 0) AS correct_answers_attempted,
             MAX(asub.submitted_at) AS submitted_at,
@@ -10795,13 +10795,13 @@ function view_monitor_jawaban()
         INNER JOIN subthemes st ON qt.subtheme_id = st.id
         LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND cm.id_pelajar = asub.user_id
         LEFT JOIN results r ON asub.result_id = r.id
-        LEFT JOIN attempts att ON r.session_id = att.session_id
+        LEFT JOIN attempts att_submitted ON r.session_id = att_submitted.session_id
         LEFT JOIN (
             SELECT 
                 da.user_id,
                 qs.title_id,
                 COUNT(DISTINCT da.question_id) as attempt_count,
-                SUM(CASE WHEN da.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
+                COUNT(DISTINCT CASE WHEN da.is_correct = 1 THEN da.question_id END) as correct_count
             FROM draft_attempts da
             INNER JOIN quiz_sessions qs ON da.session_id = qs.id
             WHERE da.status = 'draft'
@@ -10831,7 +10831,7 @@ function view_monitor_jawaban()
     }
 
     $query .= "
-        GROUP BY cm.id_pelajar, a.id, u.id
+        GROUP BY cm.id_pelajar, a.id, u.id, a.id_judul_soal
         ORDER BY a.created_at DESC, a.id DESC, FIELD(status, 'Belum Submit', 'Sedang Mengerjakan', 'Sudah Submit'), u.name ASC
     ";
 
