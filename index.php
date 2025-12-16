@@ -10756,6 +10756,20 @@ function view_monitor_jawaban()
     $current_user_id = isset($_SESSION['id']) ? (int)$_SESSION['id'] : 0;
     $assignment_id = isset($_GET['assignment_id']) ? (int)$_GET['assignment_id'] : 0;
     
+    // DEBUG - Hapus setelah selesai
+    // echo "<!-- DEBUG: current_user_id = $current_user_id -->";
+    
+    // Jika tidak login, redirect ke login
+    if ($current_user_id <= 0) {
+        echo '<div class="container py-4">';
+        echo '<div class="alert alert-danger">';
+        echo '<h5>❌ Silakan Login</h5>';
+        echo '<p>Anda harus login terlebih dahulu untuk mengakses monitor jawaban.</p>';
+        echo '</div>';
+        echo '</div>';
+        return;
+    }
+    
     // Jika assignment_id diberikan, cek apakah user adalah pembuat
     if ($assignment_id > 0) {
         $check_permission = q(
