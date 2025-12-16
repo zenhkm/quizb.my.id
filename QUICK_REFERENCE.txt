@@ -1,0 +1,288 @@
+================================================================
+QUICK REFERENCE - AUTO-SAVE JAWABAN MODE UJIAN
+================================================================
+
+PERUBAHAN DIRINGKAS:
+====================
+
+┌─────────────────────────────────────────────────────────────┐
+│ 1. DATABASE - TABEL BARU: draft_attempts                     │
+├─────────────────────────────────────────────────────────────┤
+│ Kolom               │ Tipe      │ Keterangan                  │
+├─────────────────────┼───────────┼─────────────────────────────┤
+│ id                  │ INT       │ Primary Key                 │
+│ session_id          │ INT FK    │ Referensi quiz_sessions     │
+│ user_id             │ INT FK    │ Referensi users             │
+│ question_id         │ INT FK    │ Referensi questions         │
+│ choice_id           │ INT       │ ID pilihan jawaban          │
+│ is_correct          │ TINYINT   │ 1=benar, 0=salah            │
+│ status              │ ENUM      │ 'draft' atau 'submitted'    │
+│ saved_at            │ DATETIME  │ Waktu disimpan              │
+│ updated_at          │ DATETIME  │ Waktu terakhir diubah       │
+└─────────────────────┴───────────┴─────────────────────────────┘
+
+UNIQUE KEY: (session_id, question_id) → 1 jawaban per soal
+
+JALANKAN SCRIPT: create_draft_attempts_table.sql
+================================================================
+
+┌─────────────────────────────────────────────────────────────┐
+│ 2. API ENDPOINT BARU: api_save_draft_answer()               │
+├─────────────────────────────────────────────────────────────┤
+│ Endpoint      │ ?action=api_save_draft_answer                │
+│ Method        │ POST                                         │
+│ Content-Type  │ application/json                             │
+│ Purpose       │ Auto-save jawaban ke draft_attempts          │
+│ Triggered by  │ handleAnswerClickExamMode()                 │
+│ Behavior      │ Async (fire & forget)                       │
+│ Response      │ JSON {ok: true/false, message, question_id} │
+└─────────────────────────────────────────────────────────────┘
+
+LOKASI: index.php, line ~1801
+================================================================
+
+┌─────────────────────────────────────────────────────────────┐
+│ 3. JAVASCRIPT MODIFICATION                                  │
+├─────────────────────────────────────────────────────────────┤
+│ Function      │ handleAnswerClickExamMode()                  │
+│ Added at      │ After saving to quizState.userAnswers        │
+│ What it does  │ Sends answer to api_save_draft_answer        │
+│ Timing        │ Before auto-advance to next question         │
+│ Impact        │ Answer saved to DB immediately               │
+│ Error handle  │ Silently catches errors                      │
+└─────────────────────────────────────────────────────────────┘
+
+LOKASI: index.php, line ~7050
+================================================================
+
+┌─────────────────────────────────────────────────────────────┐
+│ 4. MONITORING LOGIC - 3 STATUS LEVELS                        │
+├─────────────────────────────────────────────────────────────┤
+│ Status          │ Badge │ Artinya                             │
+├─────────────────┼────────┼─────────────────────────────────────┤
+│ ✅ Sudah Submit │ Hijau  │ Final submission done               │
+│ 🟡 Mengerjakan │ Biru   │ Draft answers saved (in progress)   │
+│ ⏳ Belum Submit │ Kuning │ No action taken yet                 │
+│ ❌ Terlambat    │ Merah  │ Past deadline                       │
+└─────────────────┴────────┴─────────────────────────────────────┘
+
+LOKASI: view_monitor_jawaban(), line ~10750
+================================================================
+
+WORKFLOW TIMELINE:
+==================
+
+STEP 1: SISWA JAWAB SOAL
+  │
+  ├─→ handleAnswerClickExamMode(selected)
+  │   ├─ Save to quizState.userAnswers (memory)
+  │   ├─ api_save_draft_answer() ← AUTO-SAVE KE DB
+  │   │   └─ INSERT/UPDATE draft_attempts (status='draft')
+  │   ├─ updateExamProgress()
+  │   └─ setTimeout → renderQuestion() atau confirmFinish()
+  │
+  └─→ MONITOR DETEKSI: Status = "🟡 Sedang Mengerjakan"
+
+STEP 2: SISWA SUBMIT UJIAN
+  │
+  ├─→ finishQuiz()
+  │   └─ fetch api_submit_answers dengan semua jawaban
+  │
+  ├─→ Backend api_submit_answers():
+  │   ├─ UPDATE draft_attempts SET status='submitted'
+  │   ├─ DELETE old attempts
+  │   ├─ INSERT attempts (final)
+  │   ├─ INSERT results (score)
+  │   └─ INSERT assignment_submissions
+  │
+  └─→ MONITOR DETEKSI: Status = "✅ Sudah Submit"
+
+================================================================
+
+DATA SOURCES UNTUK MONITOR:
+============================
+
+┌──────────────────────┬────────────────────┬───────────────────┐
+│ Status               │ Data dari           │ Kolom             │
+├──────────────────────┼────────────────────┼───────────────────┤
+│ ✅ Sudah Submit      │ attempts            │ question_id, etc  │
+│                      │ results             │ score             │
+│                      │ assignment_sub.     │ submitted_at      │
+├──────────────────────┼────────────────────┼───────────────────┤
+│ 🟡 Sedang Mengerjakan│ draft_attempts      │ saved_at          │
+│                      │ (status='draft')    │ updated_at        │
+├──────────────────────┼────────────────────┼───────────────────┤
+│ ⏳ Belum Submit      │ class_members       │ (tidak ada aksi)   │
+│                      │ (INNER JOIN only)   │                   │
+└──────────────────────┴────────────────────┴───────────────────┘
+
+================================================================
+
+QUERY STRUCTURE (SIMPLIFIED):
+==============================
+
+SELECT ...
+FROM class_members cm
+INNER JOIN users u ON cm.id_pelajar = u.id
+INNER JOIN assignments a ON a.id_kelas = cm.id_kelas
+LEFT JOIN assignment_submissions asub ON ...
+LEFT JOIN results r ON ...
+LEFT JOIN attempts att ON ...
+LEFT JOIN draft_attempts draft ON ... ← BARU
+WHERE a.mode = 'ujian'
+GROUP BY cm.id_pelajar, a.id, u.id
+ORDER BY ...
+
+STATUS LOGIC:
+CASE 
+  WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
+  WHEN COUNT(draft.id) > 0 THEN 'Sedang Mengerjakan' ← BARU
+  ELSE 'Belum Submit'
+END
+
+================================================================
+
+STATISTICS DASHBOARD (CARDS):
+==============================
+
+SEBELUM:
+  ✅ Sudah Submit    │ ⏳ Belum Submit    │ 📝 Total Siswa    │ 📈 Rata-rata
+
+SESUDAH:
+  ✅ Sudah Submit    │ 🟡 Sedang Mengerjakan │ ⏳ Belum Submit │ 📈 Rata-rata
+  (hanya for 'submitted') (NEW - for 'draft') (NEW)
+
+================================================================
+
+FILES MODIFIED:
+================
+
+1. index.php
+   ├─ Line ~930   : Tambah routing untuk ?action=api_save_draft_answer
+   ├─ Line ~1801  : Tambah fungsi api_save_draft_answer()
+   ├─ Line ~1880  : Update api_submit_answers() (mark draft as submitted)
+   ├─ Line ~7050  : Update handleAnswerClickExamMode() (auto-save)
+   └─ Line ~10750 : Update view_monitor_jawaban() (new status logic)
+
+2. create_draft_attempts_table.sql (NEW)
+   └─ Script untuk membuat tabel draft_attempts
+
+3. IMPLEMENTATION_AUTO_SAVE_JAWABAN.md (NEW)
+   └─ Dokumentasi lengkap
+
+4. QUICK_REFERENCE.txt (ini)
+   └─ Ringkasan perubahan
+
+================================================================
+
+TESTING COMMAND:
+=================
+
+DATABASE:
+---------
+-- Cek tabel terbuat
+SHOW TABLES LIKE 'draft_attempts';
+DESCRIBE draft_attempts;
+
+-- Cek sampel data (saat ujian berlangsung)
+SELECT * FROM draft_attempts WHERE status='draft' ORDER BY updated_at DESC LIMIT 10;
+
+-- Cek after submit
+SELECT * FROM draft_attempts WHERE status='submitted' ORDER BY updated_at DESC LIMIT 10;
+
+-- Cek jumlah by status
+SELECT status, COUNT(*) as count FROM draft_attempts GROUP BY status;
+
+BROWSER:
+--------
+1. Buka mode ujian
+2. Jawab beberapa soal
+3. Buka Dev Tools (F12)
+4. Lihat tab "Network" → setiap klik jawaban harus ada POST ke api_save_draft_answer
+5. Buka database → draft_attempts harus terisi
+6. Refresh halaman monitor → status siswa = "🟡 Sedang Mengerjakan"
+7. Lanjut jawab soal (refresh tadi tidak reset jawaban krn di-save DB)
+8. Klik "Selesaikan Ujian"
+9. Refresh halaman monitor → status siswa = "✅ Sudah Submit"
+
+================================================================
+
+TROUBLESHOOTING:
+=================
+
+MASALAH: api_save_draft_answer call error 404
+SOLUSI: Pastikan routing sudah ditambah di line ~930
+
+MASALAH: Tabel draft_attempts tidak ketemu
+SOLUSI: Jalankan SQL script create_draft_attempts_table.sql
+
+MASALAH: Status monitor tidak berubah
+SOLUSI: Cek apakah draft_attempts punya data (query database)
+
+MASALAH: Query terlalu lambat
+SOLUSI: Pastikan semua indexes sudah dibuat (lihat SQL script)
+
+MASALAH: Data lama tidak cleared
+SOLUSI: Opsional cleanup query ada di dokumentasi (delete old draft)
+
+================================================================
+
+ROLLBACK (JIKA BUTUH KEMBALIKAN):
+===================================
+
+1. Hapus tabel (jika mau reset total):
+   DROP TABLE draft_attempts;
+
+2. Revert index.php ke versi lama (backup di git)
+
+3. Jika ingin keep data tapi stop auto-save:
+   - Comment baris fetch di handleAnswerClickExamMode()
+   - Data lama tetap di draft_attempts untuk audit trail
+
+================================================================
+
+DEPLOYMENT CHECKLIST:
+=======================
+
+PRE-DEPLOYMENT:
+  ☐ Backup database
+  ☐ Backup index.php
+  ☐ Test di development environment
+
+DEPLOYMENT:
+  ☐ Jalankan create_draft_attempts_table.sql
+  ☐ Upload index.php yang sudah dimodifikasi
+  ☐ Clear browser cache (Ctrl+Shift+Del)
+
+POST-DEPLOYMENT:
+  ☐ Test siswa jawab soal → check draft_attempts
+  ☐ Test siswa ubah jawaban → check UPDATE di draft_attempts
+  ☐ Test siswa submit → check status='submitted'
+  ☐ Test monitor page → check 3 status level
+  ☐ Monitor error log untuk anomali
+
+================================================================
+
+PERFORMANCE IMPACT:
+====================
+
+POSITIF:
+  ✓ Real-time monitoring
+  ✓ Automatic backup jawaban
+  ✓ Can track student progress
+  ✓ Better user experience (no data loss on refresh)
+  ✓ Audit trail for compliance
+
+NEGATIF:
+  - Setiap jawab = 1 extra POST request
+  - Sedikit tambah DB size (untuk draft records)
+  - Query monitor jadi lebih kompleks
+
+MITIGASI:
+  → Auto-save adalah async (tidak block UI)
+  → Indexes sudah optimize query
+  → Cleanup strategy available (optional)
+
+================================================================
+
+END OF QUICK REFERENCE

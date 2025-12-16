@@ -933,6 +933,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_quiz') {
 if (isset($_GET['action']) && $_GET['action'] === 'api_submit_answers') {
   api_submit_answers(); // Panggil fungsi API yang baru kita buat
 }
+if (isset($_GET['action']) && $_GET['action'] === 'api_save_draft_answer') {
+  api_save_draft_answer(); // Auto-save jawaban ke database
+}
 if (isset($_GET['action']) && $_GET['action'] === 'create_challenge' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   handle_create_challenge();
 }
@@ -1795,6 +1798,83 @@ function api_get_quiz()
 }
 
 /**
+ * =====================================================================
+ * API Endpoint untuk AUTO-SAVE jawaban ke database (Real-Time)
+ * Dipanggil setiap kali siswa memilih jawaban di mode ujian
+ * =====================================================================
+ */
+function api_save_draft_answer()
+{
+  header('Content-Type: application/json; charset=UTF-8');
+
+  $input = json_decode(file_get_contents('php://input'), true);
+
+  $sid = (int)($input['session_id'] ?? 0);
+  $uid = (int)($input['user_id'] ?? 0);
+  $qid = (int)($input['question_id'] ?? 0);
+  $cid = (int)($input['choice_id'] ?? 0);
+  $is_correct = (int)($input['is_correct'] ?? 0);
+
+  // Validasi dasar
+  if ($sid === 0 || $qid === 0) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'Data tidak valid (session_id atau question_id kosong).']);
+    exit;
+  }
+
+  // Gunakan uid dari session jika tidak diberikan
+  if ($uid === 0) {
+    $uid = uid();
+  }
+
+  // Verifikasi sesi milik user yang tepat
+  $session_owner = q("SELECT user_id FROM quiz_sessions WHERE id = ?", [$sid])->fetchColumn();
+  if ($session_owner !== null && $session_owner != $uid) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Sesi tidak sah.']);
+    exit;
+  }
+
+  // Cek jika choice_id = 0 (waktu habis), ambil salah satu jawaban salah sebagai fallback
+  if ($cid === 0) {
+    $fallback_choice_id = q("SELECT id FROM choices WHERE question_id = ? AND is_correct = 0 LIMIT 1", [$qid])->fetchColumn();
+    if ($fallback_choice_id) {
+      $cid = (int)$fallback_choice_id;
+    } else {
+      http_response_code(400);
+      echo json_encode(['ok' => false, 'error' => 'Tidak ada pilihan jawaban yang valid.']);
+      exit;
+    }
+  }
+
+  // =====================================================================
+  // INSERT atau UPDATE ke draft_attempts (ON DUPLICATE KEY UPDATE)
+  // =====================================================================
+  try {
+    q(
+      "INSERT INTO draft_attempts (session_id, user_id, question_id, choice_id, is_correct, status, saved_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'draft', NOW(), NOW())
+       ON DUPLICATE KEY UPDATE
+       choice_id = VALUES(choice_id),
+       is_correct = VALUES(is_correct),
+       updated_at = NOW()",
+      [$sid, $uid, $qid, $cid, $is_correct]
+    );
+
+    echo json_encode([
+      'ok' => true,
+      'message' => 'Draft jawaban tersimpan.',
+      'question_id' => $qid
+    ]);
+    exit;
+  } catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Database error: ' . $e->getMessage()]);
+    exit;
+  }
+}
+
+/**
  * API Endpoint untuk menerima dan menyimpan semua jawaban dari kuis.
  * [VERSI PERBAIKAN] Menangani kasus waktu habis (choice_id = 0).
  */
@@ -1826,6 +1906,10 @@ function api_submit_answers()
 
   // Hapus attempt lama jika ada (untuk mencegah duplikasi jika user refresh halaman)
   q("DELETE FROM attempts WHERE session_id = ?", [$sid]);
+
+  // ▼▼▼ TANDAI SEMUA DRAFT ATTEMPTS SEBAGAI SUBMITTED ▼▼▼
+  q("UPDATE draft_attempts SET status = 'submitted' WHERE session_id = ? AND status = 'draft'", [$sid]);
+  // ▲▲▲ AKHIR UPDATE STATUS ▲▲▲
 
   // Simpan setiap jawaban
   foreach ($answers as $ans) {
@@ -6975,6 +7059,23 @@ $examTimerMins = $assignment_settings['durasi_ujian'] ?? user_exam_timer_minutes
             });
             updateExamProgress();
             
+            // ▼▼▼ AUTO-SAVE JAWABAN KE DATABASE (REAL-TIME) ▼▼▼
+            const answerData = {
+                session_id: quizState.sessionId,
+                user_id: quizState.userId,
+                question_id: question.id,
+                choice_id: parseInt(selectedButton.dataset.choiceId),
+                is_correct: selectedButton.dataset.isCorrect === 'true' ? 1 : 0
+            };
+            
+            // Kirim ke server (async, jangan perlu menunggu response)
+            fetch('?action=api_save_draft_answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(answerData)
+            }).catch(err => console.log('Auto-save failed:', err));
+            // ▲▲▲ AKHIR AUTO-SAVE ▲▲▲
+            
             // ▼▼▼ AUTO-ADVANCE KE SOAL BERIKUTNYA (MODE UJIAN) ▼▼▼
             const totalQuestions = quizState.questions.length;
             const nextIndex = quizState.currentQuestionIndex + 1;
@@ -10653,7 +10754,14 @@ function view_monitor_jawaban()
     $title_id = isset($_GET['title_id']) ? (int)$_GET['title_id'] : 0;
     $kelas_id = isset($_GET['kelas_id']) ? (int)$_GET['kelas_id'] : 0;
 
-    // 2. Query LENGKAP dengan logic yang lebih akurat - menggunakan GROUP_CONCAT untuk melihat semua data
+    // =====================================================================
+    // 2. QUERY UTAMA - Gabungkan data dari attempts dan draft_attempts
+    // =====================================================================
+    // Untuk setiap siswa dan assignment, ambil:
+    // - Data dari attempts (final submitted) + results (score)
+    // - UNION dengan draft_attempts (jawaban yang belum disubmit)
+    // =====================================================================
+    
     $query = "
         SELECT
             cm.id_pelajar AS user_id,
@@ -10673,8 +10781,10 @@ function view_monitor_jawaban()
             a.mode,
             CASE 
                 WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
+                WHEN COUNT(DISTINCT draft.id) > 0 THEN 'Sedang Mengerjakan'
                 ELSE 'Belum Submit'
-            END AS status
+            END AS status,
+            COUNT(DISTINCT draft.id) AS draft_count
         FROM class_members cm
         INNER JOIN users u ON cm.id_pelajar = u.id
         INNER JOIN assignments a ON a.id_kelas = cm.id_kelas
@@ -10683,6 +10793,12 @@ function view_monitor_jawaban()
         LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND cm.id_pelajar = asub.user_id
         LEFT JOIN results r ON asub.result_id = r.id
         LEFT JOIN attempts att ON r.session_id = att.session_id
+        LEFT JOIN draft_attempts draft ON a.id_judul_soal = (SELECT title_id FROM quiz_sessions WHERE id = (
+            SELECT session_id FROM draft_attempts 
+            WHERE user_id = cm.id_pelajar 
+            AND status = 'draft' 
+            ORDER BY updated_at DESC LIMIT 1
+        )) AND draft.user_id = cm.id_pelajar AND draft.status = 'draft'
         WHERE a.mode = 'ujian'
     ";
 
@@ -10708,24 +10824,30 @@ function view_monitor_jawaban()
 
     $query .= "
         GROUP BY cm.id_pelajar, a.id, u.id
-        ORDER BY a.created_at DESC, a.id DESC, FIELD(status, 'Belum Submit', 'Sudah Submit'), u.name ASC
+        ORDER BY a.created_at DESC, a.id DESC, FIELD(status, 'Belum Submit', 'Sedang Mengerjakan', 'Sudah Submit'), u.name ASC
     ";
 
     $jawaban_data = q($query, $params)->fetchAll();
 
     // 3. Display halaman
     echo '<div class="container py-4">';
-    echo '<h3>📊 Monitor Jawaban & Status Pengerjaan</h3>';
-    echo '<p class="text-muted">Tabel lengkap status pengerjaan siswa - data diambil dari tabel <strong>assignment_submissions</strong> dan <strong>attempts</strong></p>';
+    echo '<h3>📊 Monitor Jawaban & Status Pengerjaan (Mode Ujian)</h3>';
+    echo '<p class="text-muted">
+        <strong>Status:</strong> 
+        ✅ Sudah Submit (jawaban final) | 
+        🟡 Sedang Mengerjakan (jawaban draft di-save) | 
+        ⏳ Belum Submit (belum ada aksi)
+    </p>';
 
     if (empty($jawaban_data)) {
-        echo '<div class="alert alert-warning">Data tidak ditemukan. Pastikan ada assignment dan siswa terdaftar di kelas.</div>';
+        echo '<div class="alert alert-warning">Data tidak ditemukan. Pastikan ada assignment mode ujian dan siswa terdaftar di kelas.</div>';
         echo '</div>';
         return;
     }
 
     // 4. Statistik ringkas
     $submitted_count = 0;
+    $in_progress_count = 0;
     $not_submitted_count = 0;
     $avg_score = 0;
     $score_sum = 0;
@@ -10738,6 +10860,8 @@ function view_monitor_jawaban()
                 $score_sum += (int)$row['score_percentage'];
                 $submitted_with_score++;
             }
+        } elseif ($row['status'] === 'Sedang Mengerjakan') {
+            $in_progress_count++;
         } else {
             $not_submitted_count++;
         }
@@ -10754,17 +10878,17 @@ function view_monitor_jawaban()
     echo '</div></div></div>';
     
     echo '<div class="col-md-3">';
+    echo '<div class="card border-info">';
+    echo '<div class="card-body text-center">';
+    echo '<h5 class="card-title">🟡 Sedang Mengerjakan</h5>';
+    echo '<h3 class="text-info">' . $in_progress_count . '</h3>';
+    echo '</div></div></div>';
+    
+    echo '<div class="col-md-3">';
     echo '<div class="card border-warning">';
     echo '<div class="card-body text-center">';
     echo '<h5 class="card-title">⏳ Belum Submit</h5>';
     echo '<h3 class="text-warning">' . $not_submitted_count . '</h3>';
-    echo '</div></div></div>';
-
-    echo '<div class="col-md-3">';
-    echo '<div class="card border-info">';
-    echo '<div class="card-body text-center">';
-    echo '<h5 class="card-title">📝 Total Siswa</h5>';
-    echo '<h3 class="text-info">' . count($jawaban_data) . '</h3>';
     echo '</div></div></div>';
 
     echo '<div class="col-md-3">';
@@ -10817,6 +10941,9 @@ function view_monitor_jawaban()
         if ($row['status'] === 'Sudah Submit') {
             $status_badge = '<span class="badge bg-success">✅ Submit</span>';
             $badge_class = $prosentase >= 75 ? 'bg-success' : ($prosentase >= 50 ? 'bg-warning' : 'bg-danger');
+        } elseif ($row['status'] === 'Sedang Mengerjakan') {
+            $status_badge = '<span class="badge bg-info">🟡 Mengerjakan</span>';
+            $badge_class = 'bg-info';
         } else {
             $status_badge = '<span class="badge bg-warning text-dark">⏳ Belum</span>';
             $badge_class = 'bg-secondary';
@@ -10858,11 +10985,12 @@ function view_monitor_jawaban()
     
     echo '<div class="alert alert-info mt-3 small">';
     echo '<strong>ℹ️ Informasi:</strong><br>';
-    echo '• <strong>Status Sudah Submit:</strong> Siswa telah menyelesaikan kuis dan menekan tombol "Selesaikan Ujian"<br>';
-    echo '• <strong>Benar:</strong> Jumlah jawaban yang benar / total soal<br>';
+    echo '• <strong>✅ Sudah Submit:</strong> Siswa telah menyelesaikan kuis dan menekan tombol "Selesaikan Ujian" (data dari tabel <code>attempts</code> dengan status submitted)<br>';
+    echo '• <strong>🟡 Sedang Mengerjakan:</strong> Siswa sedang menjawab soal, jawaban sudah di-save otomatis (draft) (data dari tabel <code>draft_attempts</code>)<br>';
+    echo '• <strong>⏳ Belum Submit:</strong> Siswa belum memulai atau belum ada aksi sama sekali<br>';
+    echo '• <strong>Benar:</strong> Jumlah jawaban yang benar / total soal (hanya tampil saat sudah submit)<br>';
     echo '• <strong>%:</strong> Prosentase benar dari total soal<br>';
-    echo '• <strong>Nilai:</strong> Skor akhir (0-100)<br>';
-    echo '• Data diambil dari: <code>assignment_submissions</code> + <code>attempts</code> + <code>results</code>';
+    echo '• <strong>Nilai:</strong> Skor akhir (0-100) dari tabel <code>results</code>';
     echo '</div>';
     
     echo '</div>';
