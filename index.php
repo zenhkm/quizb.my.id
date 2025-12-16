@@ -13517,7 +13517,7 @@ function view_download_soal()
                             echo '<span>' . h($title['title']) . '</span>';
                             echo '<a href="?action=download_questions&title_id=' . $title['id'] . '" class="btn btn-sm btn-outline-primary" target="_blank">';
                             echo '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>';
-                            echo 'Download Word';
+                            echo 'Download PDF';
                             echo '</a>';
                             echo '</div>';
                         }
@@ -13561,27 +13561,33 @@ function handle_download_questions()
     // Ambil Soal
     $questions = q("SELECT * FROM questions WHERE title_id = ? ORDER BY id ASC", [$title_id])->fetchAll();
 
-    // Set Header untuk Download Word
-    $filename = preg_replace('/[^a-zA-Z0-9]/', '_', $title_info['title']) . '.doc';
-    
-    header("Content-type: application/vnd.ms-word");
-    header("Content-Disposition: attachment;Filename=" . $filename);
-    header("Pragma: no-cache");
-    header("Expires: 0");
+    // Nama file untuk PDF
+    $filename = preg_replace('/[^a-zA-Z0-9]/', '_', $title_info['title']);
 
+    // Output HTML biasa (bukan attachment Word)
+    echo '<!DOCTYPE html>';
     echo '<html>';
     echo '<head>';
-    echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">';
+    echo '<meta charset="utf-8">';
+    echo '<title>Download PDF</title>';
+    // Sertakan html2pdf.js dari CDN
+    echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>';
     echo '<style>
-            body { font-family: Arial, sans-serif; }
-            .question { margin-bottom: 20px; }
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .question { margin-bottom: 20px; page-break-inside: avoid; }
             .choices { margin-left: 20px; list-style-type: none; padding: 0; }
             .choices li { margin-bottom: 5px; }
             .correct { font-weight: bold; color: green; text-decoration: underline; }
-            .header { text-align: center; margin-bottom: 30px; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+            #loading { font-size: 1.2em; font-weight: bold; text-align: center; margin-top: 50px; }
           </style>';
     echo '</head>';
     echo '<body>';
+    
+    echo '<div id="loading">Sedang memproses PDF... Mohon tunggu.</div>';
+
+    // Container konten yang akan di-convert ke PDF
+    echo '<div id="content-to-pdf" style="display:none;">';
     
     echo '<div class="header">';
     echo '<h1>' . h($title_info['title']) . '</h1>';
@@ -13603,9 +13609,6 @@ function handle_download_questions()
                 foreach ($choices as $idx => $c) {
                     $marker = isset($abc[$idx]) ? $abc[$idx] . '. ' : '- ';
                     $class = $c['is_correct'] ? 'class="correct"' : '';
-                    // Tanda jawaban benar (opsional, bisa dihapus jika ingin soal buta)
-                    // User minta "download soal", biasanya termasuk kunci jawaban atau ditandai.
-                    // Saya akan tandai jawaban benar.
                     $text = h($c['text']);
                     if ($c['is_correct']) $text .= ' (Kunci)';
                     
@@ -13618,6 +13621,31 @@ function handle_download_questions()
     } else {
         echo '<p>Belum ada soal.</p>';
     }
+    echo '</div>'; // End #content-to-pdf
+
+    // Script untuk generate PDF otomatis
+    echo '<script>
+        window.onload = function() {
+            var element = document.getElementById("content-to-pdf");
+            // Tampilkan dulu agar bisa dirender
+            element.style.display = "block";
+            
+            var opt = {
+              margin:       [0.5, 0.5, 0.5, 0.5],
+              filename:     "' . $filename . '.pdf",
+              image:        { type: "jpeg", quality: 0.98 },
+              html2canvas:  { scale: 2, useCORS: true },
+              jsPDF:        { unit: "in", format: "letter", orientation: "portrait" }
+            };
+
+            html2pdf().set(opt).from(element).save().then(function(){
+                document.getElementById("loading").innerHTML = "PDF telah didownload. Anda boleh menutup tab ini.";
+            }).catch(function(err){
+                document.getElementById("loading").innerHTML = "Gagal membuat PDF: " + err;
+                element.style.display = "block";
+            });
+        };
+    </script>';
 
     echo '</body>';
     echo '</html>';
