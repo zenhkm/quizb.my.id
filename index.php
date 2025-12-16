@@ -10745,6 +10745,14 @@ function view_monitor_jawaban()
 
     // 3. Display halaman
     echo '<div class="container py-4">';
+    
+    // --- Tambahkan DataTables CDN ---
+    echo '<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">';
+    // Pastikan jQuery dimuat (jika belum ada di header)
+    echo '<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>';
+    echo '<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>';
+    echo '<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>';
+    // --------------------------------
     echo '<h3>📊 Monitor Jawaban & Status Pengerjaan (Mode Exam)</h3>';
     echo '<p class="text-muted">
         <strong>Status:</strong> 
@@ -10815,7 +10823,7 @@ function view_monitor_jawaban()
 
     // 5. Render tabel
     echo '<div class="table-responsive">';
-    echo '<table class="table table-striped table-hover table-sm">';
+    echo '<table id="monitorTable" class="table table-striped table-hover table-sm">';
     echo '<thead class="table-dark sticky-top">';
     echo '<tr>';
     echo '<th style="width: 3%">No</th>';
@@ -10922,6 +10930,20 @@ function view_monitor_jawaban()
     echo '• <strong>%:</strong> Prosentase benar dari total soal<br>';
     echo '• <strong>Nilai:</strong> Skor akhir (0-100) dari tabel <code>results</code>';
     echo '</div>';
+    
+    // --- Inisialisasi DataTables ---
+    echo '<script>
+        $(document).ready(function() {
+            $("#monitorTable").DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json"
+                },
+                "order": [[ 9, "desc" ]], // Urutkan berdasarkan Waktu Submit
+                "pageLength": 25
+            });
+        });
+    </script>';
+    // -------------------------------
     
     echo '</div>';
 }
