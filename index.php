@@ -4284,132 +4284,8 @@ function view_edit_tugas()
  */
 function view_detail_tugas()
 {
-    // Keamanan: Pastikan hanya pengajar yang bisa mengakses
-    if (($_SESSION['user']['role'] ?? '') !== 'pengajar') {
-        echo '<div class="alert alert-danger">Hanya pengajar yang dapat mengakses halaman ini.</div>';
-        return;
-    }
-
-    $id_pengajar = uid();
-    $assignment_id = (int)($_GET['assignment_id'] ?? 0);
-
-    // 1. Ambil detail tugas dan verifikasi kepemilikan oleh pengajar yang sedang login
-    $assignment = q("
-        SELECT a.*, qt.title as quiz_title, c.nama_kelas, c.id_institusi
-        FROM assignments a
-        JOIN quiz_titles qt ON a.id_judul_soal = qt.id
-        JOIN classes c ON a.id_kelas = c.id
-        WHERE a.id = ? AND a.id_pengajar = ?
-    ", [$assignment_id, $id_pengajar])->fetch();
-
-    if (!$assignment) {
-        echo '<div class="alert alert-danger">Tugas tidak ditemukan atau Anda tidak memiliki akses.</div>';
-        return;
-    }
-
-    // 2. Ambil semua siswa yang terdaftar di kelas ini
-    $semua_siswa = q("
-        SELECT u.id, u.name, u.avatar
-        FROM class_members cm
-        JOIN users u ON cm.id_pelajar = u.id
-        WHERE cm.id_kelas = ?
-        ORDER BY u.name ASC
-    ", [$assignment['id_kelas']])->fetchAll(PDO::FETCH_ASSOC);
-
-    // 3. Ambil data siswa yang sudah mengerjakan tugas ini beserta nilainya
-    $submissions = q("
-        SELECT asub.user_id, r.score, asub.submitted_at
-        FROM assignment_submissions asub
-        JOIN results r ON asub.result_id = r.id
-        WHERE asub.assignment_id = ?
-    ", [$assignment_id])->fetchAll(PDO::FETCH_ASSOC);
-
-    // 4. Proses data untuk memudahkan pengecekan
-    $submission_map = [];
-    foreach ($submissions as $sub) {
-        $submission_map[$sub['user_id']] = [
-            'score' => $sub['score'],
-            'submitted_at' => $sub['submitted_at']
-        ];
-    }
-
-    // 5. Pisahkan siswa menjadi dua kelompok: sudah dan belum mengerjakan
-    $sudah_mengerjakan = [];
-    $belum_mengerjakan = [];
-
-    foreach ($semua_siswa as $siswa) {
-        if (isset($submission_map[$siswa['id']])) {
-            // Siswa sudah mengerjakan
-            $sudah_mengerjakan[] = [
-                'id' => $siswa['id'],
-                'name' => $siswa['name'],
-                'avatar' => $siswa['avatar'],
-                'score' => $submission_map[$siswa['id']]['score'],
-                'submitted_at' => $submission_map[$siswa['id']]['submitted_at']
-            ];
-        } else {
-            // Siswa belum mengerjakan
-            $belum_mengerjakan[] = $siswa;
-        }
-    }
-
-    // 6. Tampilkan ke browser
-    echo '<div class="d-flex justify-content-between align-items-center mb-3">';
-    echo '  <div><h3>Progres Tugas: ' . h($assignment['judul_tugas']) . '</h3><p class="text-muted mb-0">Kelas: ' . h($assignment['nama_kelas']) . '</p></div>';
-    echo '  <a href="?page=kelola_tugas&inst_id=' . $assignment['id_institusi'] . '" class="btn btn-outline-secondary btn-sm">&laquo; Kembali ke Kelola Tugas</a>';
-    echo '</div>';
-
-    echo '<div class="row g-4">';
-
-    // Kolom Kiri: Sudah Mengerjakan
-    echo '  <div class="col-md-6">';
-    echo '    <div class="card">';
-    echo '      <div class="card-header bg-success text-white">';
-    echo '        <h5 class="mb-0">✅ Sudah Mengerjakan (' . count($sudah_mengerjakan) . ')</h5>';
-    echo '      </div>';
-    if (empty($sudah_mengerjakan)) {
-        echo '<div class="card-body text-center text-muted">Belum ada siswa yang mengerjakan.</div>';
-    } else {
-        echo '      <ul class="list-group list-group-flush">';
-        foreach ($sudah_mengerjakan as $siswa) {
-            echo '<li class="list-group-item d-flex justify-content-between align-items-center">';
-            echo '  <div class="d-flex align-items-center">';
-            echo '    <img src="' . h($siswa['avatar']) . '" class="avatar me-3" style="width:40px; height:40px;">';
-            echo '    <div>';
-            echo '      <div class="fw-bold">' . h($siswa['name']) . '</div>';
-            echo '      <small class="text-muted">Mengumpulkan pada: ' . date('d M Y, H:i', strtotime($siswa['submitted_at'])) . '</small>';
-            echo '    </div>';
-            echo '  </div>';
-            echo '  <span class="badge bg-primary rounded-pill fs-6">' . $siswa['score'] . '</span>';
-            echo '</li>';
-        }
-        echo '      </ul>';
-    }
-    echo '    </div>';
-    echo '  </div>';
-
-    // Kolom Kanan: Belum Mengerjakan
-    echo '  <div class="col-md-6">';
-    echo '    <div class="card">';
-    echo '      <div class="card-header bg-warning">';
-    echo '        <h5 class="mb-0">⚠️ Belum Mengerjakan (' . count($belum_mengerjakan) . ')</h5>';
-    echo '      </div>';
-    if (empty($belum_mengerjakan)) {
-        echo '<div class="card-body text-center text-muted">Semua siswa telah mengerjakan tugas ini.</div>';
-    } else {
-        echo '      <ul class="list-group list-group-flush">';
-        foreach ($belum_mengerjakan as $siswa) {
-            echo '<li class="list-group-item d-flex align-items-center">';
-            echo '  <img src="' . h($siswa['avatar']) . '" class="avatar me-3" style="width:40px; height:40px;">';
-            echo '  <div class="fw-bold">' . h($siswa['name']) . '</div>';
-            echo '</li>';
-        }
-        echo '      </ul>';
-    }
-    echo '    </div>';
-    echo '  </div>';
-
-    echo '</div>'; // penutup .row
+    // Langsung alihkan ke tampilan monitor jawaban yang lebih lengkap
+    view_monitor_jawaban();
 }
 
 // >>> MULAI LETAKKAN KODE BARU DI SINI <<<
@@ -10825,7 +10701,7 @@ function view_monitor_jawaban()
             COALESCE(session_data.total_questions, 0) as attempt_count
         FROM quiz_sessions qs
         INNER JOIN users u ON qs.user_id = u.id
-        INNER JOIN assignments a ON qs.title_id = a.id_judul_soal AND a.mode = 'exam'
+        INNER JOIN assignments a ON qs.title_id = a.id_judul_soal
         INNER JOIN quiz_titles qt ON a.id_judul_soal = qt.id
         INNER JOIN subthemes st ON qt.subtheme_id = st.id
         LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND u.id = asub.user_id
@@ -10882,7 +10758,7 @@ function view_monitor_jawaban()
     </p>';
 
     if (empty($jawaban_data)) {
-        echo '<div class="alert alert-warning">Data tidak ditemukan. Pastikan ada assignment mode exam dan siswa terdaftar di kelas.</div>';
+        echo '<div class="alert alert-warning">Data tidak ditemukan. Pastikan ada assignment dan siswa terdaftar di kelas.</div>';
         echo '</div>';
         return;
     }
