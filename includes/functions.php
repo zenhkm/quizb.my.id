@@ -67,8 +67,8 @@ if (!function_exists('http_get_json')) {
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT => $timeout,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_SSL_VERIFYPEER => false, // Disabled for local development compatibility
+        CURLOPT_SSL_VERIFYHOST => 0,
         CURLOPT_HTTPHEADER => ['Accept: application/json', 'User-Agent: QuizB/1.0'],
       ]);
       if ($force_local_cacert) {
@@ -81,7 +81,10 @@ if (!function_exists('http_get_json')) {
       $err  = curl_error($ch);
       $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
       curl_close($ch);
-      if ($err || $code < 200 || $code >= 300 || !$res) return null;
+      if ($err || $code < 200 || $code >= 300 || !$res) {
+          error_log("http_get_json Error: $err (Code: $code) URL: $url");
+          return null;
+      }
       $data = json_decode($res, true);
       return is_array($data) ? $data : null;
     }
@@ -478,23 +481,39 @@ function user_skill($user_id)
 function verify_google_id_token($idToken)
 {
   global $CONFIG;
-  if (!$idToken) return null;
+  if (!$idToken) {
+      error_log("Google Login Error: No ID Token provided.");
+      return null;
+  }
 
   // Pakai endpoint tokeninfo (cukup untuk MVP); produksi idealnya verifikasi JWT RS256 penuh.
   $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($idToken);
 
   // Pakai helper cURL stabil (HTTP/1.1, SSL verify ON). Set param 3 = true jika Anda menaruh cacert.pem lokal.
   $data = http_get_json($url, 7 /*timeout*/, false /*force_local_cacert*/);
-  if (!$data) return null;
+  if (!$data) {
+      error_log("Google Login Error: Failed to fetch token info from Google. URL: $url");
+      return null;
+  }
 
   // Validasi minimal yang aman
-  if (($data['aud'] ?? '') !== ($CONFIG['GOOGLE_CLIENT_ID'] ?? '')) return null;
+  $aud = $data['aud'] ?? '';
+  $configClientId = $CONFIG['GOOGLE_CLIENT_ID'] ?? '';
+  
+  if ($aud !== $configClientId) {
+      error_log("Google Login Error: Audience mismatch. Received: '$aud', Expected: '$configClientId'");
+      return null;
+  }
 
  // Email verified harus true (kadang string 'true' atau boolean true)
   $ev = $data['email_verified'] ?? '';
-  if (!($ev === true || $ev === 'true' || $ev === 1 || $ev === '1')) return null;
+  if (!($ev === true || $ev === 'true' || $ev === 1 || $ev === '1')) {
+      error_log("Google Login Error: Email not verified. Value: " . var_export($ev, true));
+      return null;
+  }
 
   return $data; // berisi sub, email, name, picture, dsb.
 }
+
 
 
