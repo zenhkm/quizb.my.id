@@ -926,6 +926,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'rekap_nilai') {
 if (isset($_GET['action']) && $_GET['action'] === 'api_get_quiz') {
   api_get_quiz(); // Panggil fungsi API yang baru kita buat
 }
+if (isset($_GET['action']) && $_GET['action'] === 'download_questions') {
+  handle_download_questions();
+}
 if (isset($_GET['action']) && $_GET['action'] === 'api_submit_answers') {
   api_submit_answers(); // Panggil fungsi API yang baru kita buat
 }
@@ -980,6 +983,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'send_test_push') {
 if (isset($_GET['action']) && $_GET['action'] === 'edit_kelas' && $_SERVER['REQUEST_METHOD'] === 'POST') handle_edit_kelas();
 if (isset($_GET['action']) && $_GET['action'] === 'delete_kelas' && $_SERVER['REQUEST_METHOD'] === 'POST') handle_delete_kelas();
 if (isset($_GET['action']) && $_GET['action'] === 'delete_institusi' && $_SERVER['REQUEST_METHOD'] === 'POST') handle_delete_institusi();
+if (isset($_GET['action']) && $_GET['action'] === 'download_questions') handle_download_questions();
 // === API BARU UNTUK CARD BROWSER ===
 if (isset($_GET['action']) && $_GET['action'] === 'api_get_subthemes') {
   header('Content-Type: application/json; charset=UTF-8');
@@ -1597,6 +1601,9 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     break;
   case 'welcome':
     view_welcome();
+    break;
+  case 'download_soal':
+    view_download_soal();
     break;
   case 'notifikasi':
     view_notifikasi();
@@ -5685,6 +5692,20 @@ function view_home()
 
   // --- KOLOM KANAN (Sidebar) ---
   echo '<div class="col-lg-4 sidebar-separator-mobile">';
+
+  // Widget Menu Pengguna (Download Soal) - Hanya untuk user login non-admin
+  if (uid() && !is_admin()) {
+      echo '<h5 class="widget-title">📂 Menu Pengguna</h5>';
+      echo '<div class="list-group sidebar-widget mb-4">';
+      echo '<a href="?page=download_soal" class="list-group-item list-group-item-action p-2">';
+      echo '  <div class="d-flex align-items-center">';
+      echo '    <div class="me-3 fs-4">📥</div>';
+      echo '    <div style="line-height: 1.3;">';
+      echo '      <div class="fw-semibold mb-1">Download Soal</div>';
+      echo '      <div class="small text-muted">Unduh soal untuk belajar offline</div>';
+      echo '    </div></div></a>';
+      echo '</div>';
+  }
 
   // Widget Peserta Terbaru
   echo '<h5 class="widget-title">🏆 Peserta Terbaru</h5>';
@@ -13444,3 +13465,162 @@ function view_qmanage_pengajar()
 // ===============================================
 // THE END
 // ===============================================
+function view_download_soal()
+{
+    if (!uid()) redirect('./');
+    if (is_admin()) redirect('./'); // Admin tidak perlu akses ini
+
+    echo '<div class="container py-4">';
+    echo '<h3>Download Soal</h3>';
+    echo '<p class="text-muted">Unduh soal-soal untuk belajar offline.</p>';
+
+    // Ambil semua tema, subtema, dan judul yang tersedia (Global + Milik Pengajar jika relevan)
+    // Untuk simplifikasi, kita ambil yang global dulu atau yang bisa diakses user.
+    // Kita gunakan logika yang mirip dengan view_themes/view_titles tapi digabung.
+    
+    // Ambil Tema
+    $themes = q("SELECT * FROM themes WHERE owner_user_id IS NULL ORDER BY sort_order, name")->fetchAll();
+
+    if (!$themes) {
+        echo '<div class="alert alert-info">Belum ada soal yang tersedia untuk diunduh.</div>';
+    } else {
+        echo '<div class="accordion" id="accordionDownload">';
+        
+        foreach ($themes as $index => $theme) {
+            $collapseId = "collapseTheme" . $theme['id'];
+            $headingId = "headingTheme" . $theme['id'];
+            
+            echo '<div class="accordion-item">';
+            echo '<h2 class="accordion-header" id="' . $headingId . '">';
+            echo '<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#' . $collapseId . '" aria-expanded="false" aria-controls="' . $collapseId . '">';
+            echo h($theme['name']);
+            echo '</button>';
+            echo '</h2>';
+            echo '<div id="' . $collapseId . '" class="accordion-collapse collapse" aria-labelledby="' . $headingId . '" data-bs-parent="#accordionDownload">';
+            echo '<div class="accordion-body">';
+            
+            // Ambil Subtema
+            $subthemes = q("SELECT * FROM subthemes WHERE theme_id = ? ORDER BY name", [$theme['id']])->fetchAll();
+            
+            if ($subthemes) {
+                foreach ($subthemes as $sub) {
+                    echo '<div class="mb-3">';
+                    echo '<h6 class="fw-bold">' . h($sub['name']) . '</h6>';
+                    
+                    // Ambil Judul
+                    $titles = q("SELECT * FROM quiz_titles WHERE subtheme_id = ? ORDER BY title", [$sub['id']])->fetchAll();
+                    
+                    if ($titles) {
+                        echo '<div class="list-group">';
+                        foreach ($titles as $title) {
+                            echo '<div class="list-group-item d-flex justify-content-between align-items-center">';
+                            echo '<span>' . h($title['title']) . '</span>';
+                            echo '<a href="?action=download_questions&title_id=' . $title['id'] . '" class="btn btn-sm btn-outline-primary" target="_blank">';
+                            echo '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-1" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>';
+                            echo 'Download Word';
+                            echo '</a>';
+                            echo '</div>';
+                        }
+                        echo '</div>';
+                    } else {
+                        echo '<small class="text-muted">Tidak ada judul soal.</small>';
+                    }
+                    echo '</div>';
+                }
+            } else {
+                echo '<p class="text-muted">Tidak ada subtema.</p>';
+            }
+            
+            echo '</div>'; // accordion-body
+            echo '</div>'; // accordion-collapse
+            echo '</div>'; // accordion-item
+        }
+        
+        echo '</div>'; // accordion
+    }
+    echo '</div>';
+}
+
+function handle_download_questions()
+{
+    if (!uid()) die('Akses ditolak');
+    if (is_admin()) die('Admin tidak perlu download');
+
+    $title_id = (int)($_GET['title_id'] ?? 0);
+    if ($title_id <= 0) die('ID Judul tidak valid');
+
+    // Ambil Info Judul
+    $title_info = q("SELECT qt.title, st.name as subtheme, t.name as theme 
+                      FROM quiz_titles qt
+                      JOIN subthemes st ON qt.subtheme_id = st.id
+                      JOIN themes t ON st.theme_id = t.id
+                      WHERE qt.id = ?", [$title_id])->fetch();
+
+    if (!$title_info) die('Data tidak ditemukan');
+
+    // Ambil Soal
+    $questions = q("SELECT * FROM questions WHERE title_id = ? ORDER BY id ASC", [$title_id])->fetchAll();
+
+    // Set Header untuk Download Word
+    $filename = preg_replace('/[^a-zA-Z0-9]/', '_', $title_info['title']) . '.doc';
+    
+    header("Content-type: application/vnd.ms-word");
+    header("Content-Disposition: attachment;Filename=" . $filename);
+    header("Pragma: no-cache");
+    header("Expires: 0");
+
+    echo '<html>';
+    echo '<head>';
+    echo '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">';
+    echo '<style>
+            body { font-family: Arial, sans-serif; }
+            .question { margin-bottom: 20px; }
+            .choices { margin-left: 20px; list-style-type: none; padding: 0; }
+            .choices li { margin-bottom: 5px; }
+            .correct { font-weight: bold; color: green; text-decoration: underline; }
+            .header { text-align: center; margin-bottom: 30px; }
+          </style>';
+    echo '</head>';
+    echo '<body>';
+    
+    echo '<div class="header">';
+    echo '<h1>' . h($title_info['title']) . '</h1>';
+    echo '<p>Tema: ' . h($title_info['theme']) . ' | Subtema: ' . h($title_info['subtheme']) . '</p>';
+    echo '</div>';
+
+    if ($questions) {
+        $no = 1;
+        foreach ($questions as $q) {
+            echo '<div class="question">';
+            echo '<p><strong>' . $no++ . '. ' . nl2br(h($q['text'])) . '</strong></p>';
+            
+            // Ambil Pilihan
+            $choices = q("SELECT * FROM choices WHERE question_id = ? ORDER BY id ASC", [$q['id']])->fetchAll();
+            
+            if ($choices) {
+                echo '<ul class="choices">';
+                $abc = range('A', 'Z');
+                foreach ($choices as $idx => $c) {
+                    $marker = isset($abc[$idx]) ? $abc[$idx] . '. ' : '- ';
+                    $class = $c['is_correct'] ? 'class="correct"' : '';
+                    // Tanda jawaban benar (opsional, bisa dihapus jika ingin soal buta)
+                    // User minta "download soal", biasanya termasuk kunci jawaban atau ditandai.
+                    // Saya akan tandai jawaban benar.
+                    $text = h($c['text']);
+                    if ($c['is_correct']) $text .= ' (Kunci)';
+                    
+                    echo '<li ' . $class . '>' . $marker . $text . '</li>';
+                }
+                echo '</ul>';
+            }
+            echo '</div>';
+        }
+    } else {
+        echo '<p>Belum ada soal.</p>';
+    }
+
+    echo '</body>';
+    echo '</html>';
+    exit;
+}
+
