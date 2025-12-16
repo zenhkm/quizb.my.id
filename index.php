@@ -10810,6 +10810,8 @@ function view_monitor_jawaban()
             qs.id AS session_id,
             COALESCE(session_data.total_questions, 0) AS total_questions_attempted,
             COALESCE(session_data.correct_answers, 0) AS correct_answers_attempted,
+            COALESCE(submitted_data.total_questions, 0) AS total_questions_submitted,
+            COALESCE(submitted_data.correct_answers, 0) AS correct_answers_submitted,
             asub.submitted_at,
             r.id AS result_id,
             r.score AS score_percentage,
@@ -10838,6 +10840,15 @@ function view_monitor_jawaban()
             WHERE status = 'draft'
             GROUP BY user_id, session_id
         ) session_data ON qs.user_id = session_data.user_id AND qs.id = session_data.session_id
+        LEFT JOIN (
+            SELECT 
+                att.session_id,
+                COUNT(DISTINCT att.question_id) as total_questions,
+                COUNT(DISTINCT CASE WHEN att.is_correct = 1 THEN att.question_id END) as correct_answers
+            FROM attempts att
+            WHERE att.is_final = 1
+            GROUP BY att.session_id
+        ) submitted_data ON qs.id = submitted_data.session_id
         WHERE a.id_pengajar = ?
     ";
 
