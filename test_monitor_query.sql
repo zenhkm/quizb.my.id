@@ -12,13 +12,11 @@ SELECT
     a.judul_tugas,
     a.mode,
     a.id_kelas,
-    k.kelas_nama,
     COUNT(cm.id_pelajar) as total_siswa
 FROM assignments a
 LEFT JOIN class_members cm ON a.id_kelas = cm.id_kelas
-LEFT JOIN (SELECT DISTINCT id_kelas, kelas_nama FROM class_members) k ON a.id_kelas = k.id_kelas
 WHERE a.mode = 'ujian'
-GROUP BY a.id, a.judul_tugas, a.mode
+GROUP BY a.id, a.judul_tugas, a.mode, a.id_kelas
 LIMIT 20;
 
 -- 3. Cek apakah ada data di draft_attempts
