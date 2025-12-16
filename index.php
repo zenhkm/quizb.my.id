@@ -10657,7 +10657,8 @@ function view_monitor_jawaban()
         SELECT
             u.id AS user_id,
             u.name AS user_name,
-            u.no_induk,
+            u.nama_sekolah,
+            u.nama_kelas,
             st.name AS subtheme_name,
             qt.title AS quiz_title,
             r.score AS score_percentage,
@@ -10688,7 +10689,7 @@ function view_monitor_jawaban()
     }
 
     $query .= "
-        GROUP BY asub.id, u.id, u.name, u.no_induk, st.name, qt.title, r.score, asub.submitted_at
+        GROUP BY asub.id, u.id, u.name, u.nama_sekolah, u.nama_kelas, st.name, qt.title, r.score, asub.submitted_at
         ORDER BY asub.submitted_at DESC
     ";
 
@@ -10711,7 +10712,8 @@ function view_monitor_jawaban()
     echo '<thead class="table-dark">';
     echo '<tr>';
     echo '<th>Nama</th>';
-    echo '<th>No. Induk</th>';
+    echo '<th>Sekolah</th>';
+    echo '<th>Kelas</th>';
     echo '<th>Sub Tema</th>';
     echo '<th>Judul Soal</th>';
     echo '<th>Jawaban Benar</th>';
@@ -10734,7 +10736,8 @@ function view_monitor_jawaban()
 
         echo '<tr>';
         echo '<td>' . h($row['user_name']) . '</td>';
-        echo '<td>' . h($row['no_induk'] ?? '-') . '</td>';
+        echo '<td><small>' . h($row['nama_sekolah'] ?? '-') . '</small></td>';
+        echo '<td><small>' . h($row['nama_kelas'] ?? '-') . '</small></td>';
         echo '<td>' . h($row['subtheme_name']) . '</td>';
         echo '<td>' . h($row['quiz_title']) . '</td>';
         echo '<td><span class="badge bg-info">' . $jawaban_benar . ' / ' . $total_soal . '</span></td>';
