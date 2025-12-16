@@ -831,10 +831,10 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     view_titles();
     break;
   case 'play':
-    view_play();
+    require 'actions/play.php';
     break;
   case 'profile':
-    view_profile();
+    require 'actions/profile.php';
     break;
   case 'admin':
     view_admin();
@@ -3782,6 +3782,7 @@ function guard_admin(): bool
 // ===============================================
 // QUIZ ENGINE
 // ===============================================
+/* MOVED TO actions/play.php and views/play.php
 function view_play()
 {
 
@@ -4337,6 +4338,7 @@ $examTimerMins = $assignment_settings['durasi_ujian'] ?? user_exam_timer_minutes
   // ==========================================================
   // ▲▲▲ AKHIR DARI BLOK PERUBAHAN ▲▲▲
 }
+*/
 // ================================
 // AKHIR VIEW PLAY
 // ================================
@@ -5810,6 +5812,7 @@ function handle_delete_conversation()
 // ===============================================
 // PROFIL
 // ===============================================
+/*
 function view_profile()
 {
   global $CONFIG;
@@ -6112,6 +6115,7 @@ function view_profile()
     }
   }
 }
+*/
 
 
 // ===============================================
