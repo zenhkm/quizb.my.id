@@ -10804,7 +10804,7 @@ function view_monitor_jawaban()
             WHERE qs.user_id IS NOT NULL
             GROUP BY qs.user_id, qs.title_id
         ) has_attempts ON cm.id_pelajar = has_attempts.user_id AND a.id_judul_soal = has_attempts.title_id
-        WHERE a.mode = 'ujian'
+        WHERE a.mode = 'exam'
     ";
 
     $params = [];
@@ -10836,7 +10836,7 @@ function view_monitor_jawaban()
 
     // 3. Display halaman
     echo '<div class="container py-4">';
-    echo '<h3>📊 Monitor Jawaban & Status Pengerjaan (Mode Ujian)</h3>';
+    echo '<h3>📊 Monitor Jawaban & Status Pengerjaan (Mode Exam)</h3>';
     echo '<p class="text-muted">
         <strong>Status:</strong> 
         ✅ Sudah Submit (jawaban final) | 
@@ -10845,7 +10845,7 @@ function view_monitor_jawaban()
     </p>';
 
     if (empty($jawaban_data)) {
-        echo '<div class="alert alert-warning">Data tidak ditemukan. Pastikan ada assignment mode ujian dan siswa terdaftar di kelas.</div>';
+        echo '<div class="alert alert-warning">Data tidak ditemukan. Pastikan ada assignment mode exam dan siswa terdaftar di kelas.</div>';
         echo '</div>';
         return;
     }
