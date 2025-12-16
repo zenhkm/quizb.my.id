@@ -10799,7 +10799,7 @@ function view_monitor_jawaban()
     
     $query = "
         SELECT
-            cm.id_pelajar AS user_id,
+            u.id AS user_id,
             u.name AS user_name,
             u.nama_sekolah,
             u.nama_kelas,
@@ -10807,42 +10807,37 @@ function view_monitor_jawaban()
             a.judul_tugas,
             st.name AS subtheme_name,
             qt.title AS quiz_title,
-            MAX(r.score) AS score_percentage,
-            SUM(CASE WHEN att_submitted.id IS NOT NULL AND att_submitted.is_correct = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT att_submitted.id), 0) as total_questions_submitted,
-            SUM(CASE WHEN att_submitted.id IS NOT NULL AND att_submitted.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers_submitted,
-            COALESCE(draft_data.attempt_count, 0) AS total_questions_attempted,
-            COALESCE(draft_data.correct_count, 0) AS correct_answers_attempted,
-            MAX(asub.submitted_at) AS submitted_at,
-            MAX(r.id) AS result_id,
+            qs.id AS session_id,
+            COALESCE(session_data.total_questions, 0) AS total_questions_attempted,
+            COALESCE(session_data.correct_answers, 0) AS correct_answers_attempted,
+            asub.submitted_at,
+            r.id AS result_id,
+            r.score AS score_percentage,
             a.batas_waktu,
             a.mode,
             CASE 
                 WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
-                WHEN draft_data.attempt_count > 0 THEN 'Sedang Mengerjakan'
+                WHEN session_data.total_questions > 0 AND asub.id IS NULL THEN 'Sedang Mengerjakan'
                 ELSE 'Belum Submit'
             END AS status,
-            COALESCE(draft_data.attempt_count, 0) as attempt_count
-        FROM class_members cm
-        INNER JOIN users u ON cm.id_pelajar = u.id
-        INNER JOIN assignments a ON a.id_kelas = cm.id_kelas
+            COALESCE(session_data.total_questions, 0) as attempt_count
+        FROM quiz_sessions qs
+        INNER JOIN users u ON qs.user_id = u.id
+        INNER JOIN assignments a ON qs.title_id = a.id_judul_soal AND a.mode = 'exam'
         INNER JOIN quiz_titles qt ON a.id_judul_soal = qt.id
         INNER JOIN subthemes st ON qt.subtheme_id = st.id
-        LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND cm.id_pelajar = asub.user_id
-        LEFT JOIN results r ON asub.result_id = r.id
-        LEFT JOIN attempts att_submitted ON r.session_id = att_submitted.session_id
+        LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND u.id = asub.user_id
+        LEFT JOIN results r ON asub.result_id = r.id AND r.session_id = qs.id
         LEFT JOIN (
             SELECT 
-                da.user_id,
-                qs.id as session_id,
-                qs.title_id,
-                COUNT(DISTINCT da.question_id) as attempt_count,
-                COUNT(DISTINCT CASE WHEN da.is_correct = 1 THEN da.question_id END) as correct_count
-            FROM draft_attempts da
-            INNER JOIN quiz_sessions qs ON da.session_id = qs.id
-            WHERE da.status = 'draft'
-            GROUP BY da.user_id, qs.id, qs.title_id
-        ) draft_data ON cm.id_pelajar = draft_data.user_id AND a.id_judul_soal = draft_data.title_id
-        WHERE a.mode = 'exam' AND a.id_pengajar = ?
+                user_id,
+                session_id,
+                COUNT(DISTINCT CASE WHEN is_correct = 1 THEN question_id END) as correct_answers
+            FROM draft_attempts
+            WHERE status = 'draft'
+            GROUP BY user_id, session_id
+        ) session_data ON qs.user_id = session_data.user_id AND qs.id = session_data.session_id
+        WHERE a.id_pengajar = ?
     ";
 
     $params = [$current_user_id];
@@ -10859,15 +10854,8 @@ function view_monitor_jawaban()
         $params[] = $title_id;
     }
 
-    // Filter berdasarkan kelas jika diberikan
-    if ($kelas_id > 0) {
-        $query .= " AND cm.id_kelas = ?";
-        $params[] = $kelas_id;
-    }
-
     $query .= "
-        GROUP BY cm.id_pelajar, a.id, u.id, a.id_judul_soal
-        ORDER BY a.created_at DESC, a.id DESC, FIELD(status, 'Belum Submit', 'Sedang Mengerjakan', 'Sudah Submit'), u.name ASC
+        ORDER BY qs.created_at DESC, a.id DESC, u.name ASC
     ";
 
     $jawaban_data = q($query, $params)->fetchAll();
@@ -11034,7 +11022,7 @@ function view_monitor_jawaban()
         
         echo '<td><small>' . $submitted_at . '</small></td>';
         echo '<td><small>' . $batas_waktu . '</small></td>';
-        echo '<td><small><code>#' . ($row['result_id'] ?? ($row['attempt_count'] > 0 ? 'Draft' : '-')) . '</code></small></td>';
+        echo '<td><small><code>S#' . $row['session_id'] . '</code></small></td>';
         echo '</tr>';
     }
 
