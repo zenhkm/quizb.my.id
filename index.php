@@ -896,7 +896,7 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     break;
  case 'review': // <--- BLOK BARU
     if (!uid()) redirect('./');
-    view_review_summary();
+    require 'actions/review.php';
     break;
 
  case 'student_tasks':
@@ -4996,6 +4996,7 @@ function create_session($title_id, $mode, $jumlah_soal = 10)
 // AWAL VIEW SUMMARY
 // ===============================================
 
+/*
 function view_summary($sid)
 {
   $session = q("SELECT * FROM quiz_sessions WHERE id=?", [$sid])->fetch();
@@ -5335,6 +5336,7 @@ if ($assignment_id) {
     echo '</div>';
   }
 }
+*/
 // ===============================================
 // AKHIR VIEW SUMMARY
 // ===============================================
@@ -5483,6 +5485,7 @@ try {
  * Menampilkan ringkasan kuis untuk review oleh admin/pemilik hasil.
  * Mengambil result_id dari URL untuk mendapatkan session_id.
  */
+/*
 function view_review_summary()
 {
     $result_id = (int)($_GET['result_id'] ?? 0);
@@ -5527,6 +5530,7 @@ function view_review_summary()
     }
 
 }
+*/
 
 
 

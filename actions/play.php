@@ -99,7 +99,12 @@ $qs = q("SELECT q.* FROM quiz_session_questions m
        ORDER BY m.sort_no", [$sid])->fetchAll();
 $i = max(0, (int)($_GET['i'] ?? 0));
 if ($i >= count($qs) && count($qs) > 0) { // Tambahkan pengecekan count($qs) > 0
-  return view_summary($sid);
+  require 'actions/summary.php';
+  require 'views/summary.php';
+  if (isset($_SESSION['current_challenge_token'])) {
+      unset($_SESSION['current_challenge_token']);
+  }
+  return;
 }
 
 if ($mode === 'instant' || $mode === 'end' || $mode === 'exam') {
