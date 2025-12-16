@@ -10774,8 +10774,10 @@ function view_monitor_jawaban()
             st.name AS subtheme_name,
             qt.title AS quiz_title,
             MAX(r.score) AS score_percentage,
-            COUNT(DISTINCT att.id) AS total_questions,
-            SUM(CASE WHEN att.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers,
+            COUNT(DISTINCT att.id) AS total_questions_submitted,
+            SUM(CASE WHEN att.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers_submitted,
+            COALESCE(has_attempts.attempt_count, 0) AS total_questions_attempted,
+            COALESCE(has_attempts.correct_count, 0) AS correct_answers_attempted,
             MAX(asub.submitted_at) AS submitted_at,
             MAX(r.id) AS result_id,
             a.batas_waktu,
@@ -10935,10 +10937,21 @@ function view_monitor_jawaban()
         }
         $prev_assignment_id = $row['assignment_id'];
 
-        $jawaban_benar = (int)$row['correct_answers'];
-        $total_soal = (int)$row['total_questions'];
-        $prosentase = $total_soal > 0 && $row['status'] === 'Sudah Submit' ? round(($jawaban_benar / $total_soal) * 100, 2) : 0;
-        $nilai_total = $row['score_percentage'] !== null ? (int)$row['score_percentage'] : '-';
+        // Gunakan data yang sesuai dengan status
+        if ($row['status'] === 'Sudah Submit') {
+            // Setelah submit: gunakan data dari results
+            $jawaban_benar = (int)$row['correct_answers_submitted'];
+            $total_soal = (int)$row['total_questions_submitted'];
+            $prosentase = $total_soal > 0 ? round(($jawaban_benar / $total_soal) * 100, 2) : 0;
+            $nilai_total = $row['score_percentage'] !== null ? (int)$row['score_percentage'] : '-';
+        } else {
+            // Sedang mengerjakan atau belum mulai: gunakan data dari attempts
+            $jawaban_benar = (int)$row['correct_answers_attempted'];
+            $total_soal = (int)$row['total_questions_attempted'];
+            $prosentase = $total_soal > 0 ? round(($jawaban_benar / $total_soal) * 100, 2) : 0;
+            $nilai_total = '-';
+        }
+
         $submitted_at = $row['submitted_at'] ? date('d-m-Y H:i', strtotime($row['submitted_at'])) : '-';
         $batas_waktu = $row['batas_waktu'] ? date('d-m-Y H:i', strtotime($row['batas_waktu'])) : 'Tidak ada';
 
