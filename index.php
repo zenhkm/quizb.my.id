@@ -10800,7 +10800,7 @@ function view_monitor_jawaban()
             SELECT 
                 da.user_id,
                 qs.title_id,
-                COUNT(DISTINCT da.id) as attempt_count,
+                COUNT(DISTINCT da.question_id) as attempt_count,
                 SUM(CASE WHEN da.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
             FROM draft_attempts da
             INNER JOIN quiz_sessions qs ON da.session_id = qs.id
