@@ -10749,13 +10749,37 @@ function view_kelola_kelas_siswa()
  */
 function view_monitor_jawaban()
 {
-    // 1. Ambil parameter filter dari URL
+    // =====================================================================
+    // 1. PERMISSION CHECK - Hanya guru pembuat ujian yang bisa akses
+    // =====================================================================
+    // Cek apakah user adalah guru dan pembuat ujian
+    $current_user_id = isset($_SESSION['id']) ? (int)$_SESSION['id'] : 0;
     $assignment_id = isset($_GET['assignment_id']) ? (int)$_GET['assignment_id'] : 0;
+    
+    // Jika assignment_id diberikan, cek apakah user adalah pembuat
+    if ($assignment_id > 0) {
+        $check_permission = q(
+            "SELECT id FROM assignments WHERE id = ? AND id_pengajar = ? LIMIT 1",
+            [$assignment_id, $current_user_id]
+        )->fetch();
+        
+        if (!$check_permission) {
+            echo '<div class="container py-4">';
+            echo '<div class="alert alert-danger">';
+            echo '<h5>❌ Akses Ditolak</h5>';
+            echo '<p>Anda tidak memiliki akses ke monitor jawaban ini. Hanya guru pembuat ujian yang dapat melihat data siswa.</p>';
+            echo '</div>';
+            echo '</div>';
+            return;
+        }
+    }
+    
+    // 2. Ambil parameter filter dari URL
     $title_id = isset($_GET['title_id']) ? (int)$_GET['title_id'] : 0;
     $kelas_id = isset($_GET['kelas_id']) ? (int)$_GET['kelas_id'] : 0;
 
     // =====================================================================
-    // 2. QUERY UTAMA - CORRECTED & COMPLETE
+    // 3. QUERY UTAMA - Filter assignments yang dibuat oleh guru saat ini
     // =====================================================================
     // Deteksi status:
     // - "Sudah Submit" → ada di assignment_submissions (submitted)
@@ -10811,10 +10835,10 @@ function view_monitor_jawaban()
             )
             GROUP BY da.user_id, qs.title_id
         ) draft_data ON cm.id_pelajar = draft_data.user_id AND a.id_judul_soal = draft_data.title_id
-        WHERE a.mode = 'exam'
+        WHERE a.mode = 'exam' AND a.id_pengajar = ?
     ";
 
-    $params = [];
+    $params = [$current_user_id];
 
     // Filter berdasarkan assignment jika diberikan
     if ($assignment_id > 0) {
