@@ -10876,8 +10876,10 @@ function view_monitor_jawaban()
             $nilai_total = '-';
         }
 
-        $submitted_at = $row['submitted_at'] ? date('d-m-Y H:i', strtotime($row['submitted_at'])) : '-';
-        $batas_waktu = $row['batas_waktu'] ? date('d-m-Y H:i', strtotime($row['batas_waktu'])) : 'Tidak ada';
+        $submitted_at_ts = $row['submitted_at'] ? strtotime($row['submitted_at']) : 0;
+        $batas_waktu_ts = $row['batas_waktu'] ? strtotime($row['batas_waktu']) : 0;
+        $submitted_at = $row['submitted_at'] ? date('d-m-Y H:i', $submitted_at_ts) : '-';
+        $batas_waktu = $row['batas_waktu'] ? date('d-m-Y H:i', $batas_waktu_ts) : 'Tidak ada';
 
         // Warna badge berdasarkan status
         if ($row['status'] === 'Sudah Submit') {
@@ -10911,18 +10913,19 @@ function view_monitor_jawaban()
         // Tampilkan data benar/nilai untuk SEMUA status (kecuali "Belum Submit" tanpa data)
         if ($total_soal > 0 || $row['status'] === 'Sudah Submit') {
             // Ada data jawaban (baik submitted maupun draft)
-            echo '<td><span class="badge bg-info">' . $jawaban_benar . '/' . $denominator . '</span></td>';
-            echo '<td><span class="badge ' . $badge_class . '">' . $prosentase . '%</span></td>';
-            echo '<td><strong>' . $nilai_total . '</strong></td>';
+            $nilai_sort = is_numeric($nilai_total) ? $nilai_total : -1;
+            echo '<td data-order="' . $jawaban_benar . '"><span class="badge bg-info">' . $jawaban_benar . '/' . $denominator . '</span></td>';
+            echo '<td data-order="' . $prosentase . '"><span class="badge ' . $badge_class . '">' . $prosentase . '%</span></td>';
+            echo '<td data-order="' . $nilai_sort . '"><strong>' . $nilai_total . '</strong></td>';
         } else {
             // Tidak ada data jawaban sama sekali
-            echo '<td class="text-center text-muted">-</td>';
-            echo '<td class="text-center text-muted">-</td>';
-            echo '<td class="text-center text-muted">-</td>';
+            echo '<td data-order="0" class="text-center text-muted">-</td>';
+            echo '<td data-order="0" class="text-center text-muted">-</td>';
+            echo '<td data-order="-1" class="text-center text-muted">-</td>';
         }
         
-        echo '<td><small>' . $submitted_at . '</small></td>';
-        echo '<td><small>' . $batas_waktu . '</small></td>';
+        echo '<td data-order="' . $submitted_at_ts . '"><small>' . $submitted_at . '</small></td>';
+        echo '<td data-order="' . $batas_waktu_ts . '"><small>' . $batas_waktu . '</small></td>';
         echo '<td><small><code>S#' . $row['session_id'] . '</code></small></td>';
         echo '</tr>';
     }
