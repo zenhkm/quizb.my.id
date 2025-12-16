@@ -10755,9 +10755,12 @@ function view_monitor_jawaban()
     $kelas_id = isset($_GET['kelas_id']) ? (int)$_GET['kelas_id'] : 0;
 
     // =====================================================================
-    // 2. QUERY UTAMA - SIMPLIFIED & FIXED
+    // 2. QUERY UTAMA - CORRECTED & COMPLETE
     // =====================================================================
-    // Cek apakah ada draft_attempts untuk user + assignment yang match
+    // Deteksi status:
+    // - "Sudah Submit" → ada di assignment_submissions (submitted)
+    // - "Sedang Mengerjakan" → ada attempts + no assignment_submissions (in-progress)
+    // - "Belum Submit" → tidak ada attempts dan tidak ada assignment_submissions
     // =====================================================================
     
     $query = "
@@ -10779,18 +10782,10 @@ function view_monitor_jawaban()
             a.mode,
             CASE 
                 WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
-                WHEN (
-                    SELECT COUNT(*) FROM draft_attempts da 
-                    WHERE da.user_id = cm.id_pelajar 
-                    AND da.status = 'draft'
-                    AND da.session_id IN (
-                        SELECT qs.id FROM quiz_sessions qs 
-                        WHERE qs.title_id = a.id_judul_soal 
-                        AND qs.user_id = cm.id_pelajar
-                    )
-                ) > 0 THEN 'Sedang Mengerjakan'
+                WHEN has_attempts.attempt_count > 0 THEN 'Sedang Mengerjakan'
                 ELSE 'Belum Submit'
-            END AS status
+            END AS status,
+            COALESCE(has_attempts.attempt_count, 0) as attempt_count
         FROM class_members cm
         INNER JOIN users u ON cm.id_pelajar = u.id
         INNER JOIN assignments a ON a.id_kelas = cm.id_kelas
@@ -10799,6 +10794,16 @@ function view_monitor_jawaban()
         LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND cm.id_pelajar = asub.user_id
         LEFT JOIN results r ON asub.result_id = r.id
         LEFT JOIN attempts att ON r.session_id = att.session_id
+        LEFT JOIN (
+            SELECT 
+                qs.user_id,
+                qs.title_id,
+                COUNT(DISTINCT att.id) as attempt_count
+            FROM attempts att
+            INNER JOIN quiz_sessions qs ON att.session_id = qs.id
+            WHERE qs.user_id IS NOT NULL
+            GROUP BY qs.user_id, qs.title_id
+        ) has_attempts ON cm.id_pelajar = has_attempts.user_id AND a.id_judul_soal = has_attempts.title_id
         WHERE a.mode = 'ujian'
     ";
 
