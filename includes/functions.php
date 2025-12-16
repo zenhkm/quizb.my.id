@@ -466,3 +466,35 @@ function echo_breadcrumb_jsonld()
   ];
   echo '<script type="application/ld+json">' . json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . '</script>';
 }
+
+function user_skill($user_id)
+{
+  if (!$user_id) return 0.3; // belum login → anggap pemula
+  $r = q("SELECT AVG(score) avg FROM results WHERE user_id=?", [$user_id])->fetch();
+  $avg = (float)($r['avg'] ?? 0);
+  return $avg ? max(0.1, min(0.95, $avg / 100)) : 0.4;
+}
+
+function verify_google_id_token($idToken)
+{
+  global $CONFIG;
+  if (!$idToken) return null;
+
+  // Pakai endpoint tokeninfo (cukup untuk MVP); produksi idealnya verifikasi JWT RS256 penuh.
+  $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($idToken);
+
+  // Pakai helper cURL stabil (HTTP/1.1, SSL verify ON). Set param 3 = true jika Anda menaruh cacert.pem lokal.
+  $data = http_get_json($url, 7 /*timeout*/, false /*force_local_cacert*/);
+  if (!$data) return null;
+
+  // Validasi minimal yang aman
+  if (($data['aud'] ?? '') !== ($CONFIG['GOOGLE_CLIENT_ID'] ?? '')) return null;
+
+ // Email verified harus true (kadang string 'true' atau boolean true)
+  $ev = $data['email_verified'] ?? '';
+  if (!($ev === true || $ev === 'true' || $ev === 1 || $ev === '1')) return null;
+
+  return $data; // berisi sub, email, name, picture, dsb.
+}
+
+
