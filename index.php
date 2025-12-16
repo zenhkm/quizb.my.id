@@ -10683,7 +10683,7 @@ function view_monitor_jawaban()
         LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND cm.id_pelajar = asub.user_id
         LEFT JOIN results r ON asub.result_id = r.id
         LEFT JOIN attempts att ON r.session_id = att.session_id
-        WHERE 1=1
+        WHERE a.mode = 'ujian'
     ";
 
     $params = [];
