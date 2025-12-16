@@ -64,7 +64,7 @@ if (!function_exists('http_get_json')) {
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_CONNECTTIMEOUT => 15, // Increased timeout
         CURLOPT_TIMEOUT => $timeout,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
         CURLOPT_SSL_VERIFYPEER => false, // Disabled for local development compatibility
@@ -82,7 +82,7 @@ if (!function_exists('http_get_json')) {
       $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
       curl_close($ch);
       if ($err || $code < 200 || $code >= 300 || !$res) {
-          echo "Debug: http_get_json Error: $err (Code: $code) URL: $url <br>";
+          error_log("http_get_json Error: $err (Code: $code) URL: $url");
           return null;
       }
       $data = json_decode($res, true);
@@ -482,7 +482,7 @@ function verify_google_id_token($idToken)
 {
   global $CONFIG;
   if (!$idToken) {
-      echo "Debug: No ID Token provided.<br>";
+      error_log("Google Login Error: No ID Token provided.");
       return null;
   }
 
@@ -490,9 +490,9 @@ function verify_google_id_token($idToken)
   $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($idToken);
 
   // Pakai helper cURL stabil (HTTP/1.1, SSL verify ON). Set param 3 = true jika Anda menaruh cacert.pem lokal.
-  $data = http_get_json($url, 7 /*timeout*/, false /*force_local_cacert*/);
+  $data = http_get_json($url, 20 /*timeout*/, false /*force_local_cacert*/);
   if (!$data) {
-      echo "Debug: Failed to fetch token info from Google. URL: $url <br>";
+      error_log("Google Login Error: Failed to fetch token info from Google. URL: $url");
       return null;
   }
 
@@ -501,14 +501,14 @@ function verify_google_id_token($idToken)
   $configClientId = $CONFIG['GOOGLE_CLIENT_ID'] ?? '';
   
   if ($aud !== $configClientId) {
-      echo "Debug: Audience mismatch. Received: '$aud', Expected: '$configClientId'<br>";
+      error_log("Google Login Error: Audience mismatch. Received: '$aud', Expected: '$configClientId'");
       return null;
   }
 
   // Email verified harus true (kadang string 'true' atau boolean true)
   $ev = $data['email_verified'] ?? '';
   if (!($ev === true || $ev === 'true' || $ev === 1 || $ev === '1')) {
-      echo "Debug: Email not verified. Value: " . var_export($ev, true) . "<br>";
+      error_log("Google Login Error: Email not verified. Value: " . var_export($ev, true));
       return null;
   }
 
