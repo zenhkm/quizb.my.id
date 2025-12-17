@@ -1,5 +1,5 @@
 <?php
-include __DIR__.'/backup_diff.php';
+
 // === AWAL ERROR REPORTING ===
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
