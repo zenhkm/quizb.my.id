@@ -3525,7 +3525,6 @@ function view_titles()
 */
 
 /*
-/*
 function view_difficulty_titles()
 {
   $pdo = pdo_instance();
