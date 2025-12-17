@@ -1445,22 +1445,31 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
           }
       }
 
-        if (mobileNav) {
-          mobileNav.addEventListener('click', function(e) {
+          // Helper to tell server we've read notifications (SPA)
+          async function markNotifReadServer(){
+          try{ await fetch('?action=mark_notifications_read',{cache:'no-store'}); }catch(e){}
+          }
+
+          if (mobileNav) {
+            mobileNav.addEventListener('click', async function(e) {
               const link = e.target.closest('a.spa-nav-link');
               if (link && link.dataset.page) {
-                  e.preventDefault();
-                  const page = link.dataset.page;
-              // Give immediate UI feedback for badges on tap
-              if(page === 'notifikasi' || page === 'pesan'){
-                forceClearBadge(page);
+                e.preventDefault();
+                const page = link.dataset.page;
+                // Immediate UI feedback
+                if(page === 'notifikasi' || page === 'pesan'){
+                  forceClearBadge(page);
+                }
+                // For notifikasi, also notify server then refresh counts
+                if(page === 'notifikasi'){
+                  markNotifReadServer().then(updateBadgesViaAPI);
+                }
+                if (!link.classList.contains('active')) {
+                  await loadPage(page, true);
+                }
               }
-                  if (!link.classList.contains('active')) {
-                      loadPage(page, true);
-                  }
-              }
-          });
-      }
+            });
+          }
 
       window.addEventListener('popstate', function(e) {
           const fallbackPage = new URLSearchParams(window.location.search).get('page') || 'home';

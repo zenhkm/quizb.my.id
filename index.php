@@ -359,6 +359,22 @@ if ($page === 'kelola_user' && is_admin() && $_SERVER['REQUEST_METHOD'] === 'POS
 if (isset($_GET['action']) && $_GET['action'] === 'api_get_page_content') {
   api_get_page_content();
 }
+// Mark notifications as read via API (used by mobile SPA tap)
+if (isset($_GET['action']) && $_GET['action'] === 'mark_notifications_read') {
+  header('Content-Type: application/json; charset=UTF-8');
+  if (!uid()) { echo json_encode(['ok'=>false,'error'=>'unauthorized']); exit; }
+  try {
+    $uid_now = uid();
+    q("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0", [$uid_now]);
+    $stmt = pdo()->prepare("INSERT IGNORE INTO user_notification_reads (user_id, notification_id) VALUES (?, ?)");
+    $ids = q("SELECT id FROM broadcast_notifications")->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($ids as $nid) { $stmt->execute([$uid_now, $nid]); }
+    echo json_encode(['ok'=>true]);
+  } catch (Throwable $e) {
+    echo json_encode(['ok'=>false]);
+  }
+  exit;
+}
 // Lightweight API: unread counts for messages and notifications (for SPA badge refresh)
 if (isset($_GET['action']) && $_GET['action'] === 'get_unread_counts') {
   header('Content-Type: application/json; charset=UTF-8');
