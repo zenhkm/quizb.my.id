@@ -3621,8 +3621,6 @@ function view_difficulty_titles()
   echo '</div></div>';
 }
 */
-*/
-
 
 /*
 function view_difficulty_questions(int $title_id)
