@@ -158,11 +158,11 @@ echo <<<JS
             const controlsEl = document.getElementById('exam-controls');
             if (controlsEl) {
                 controlsEl.innerHTML = `
-                    <button class="btn btn-secondary" onclick="renderQuestion(${index - 1})" ${index === 0 ? 'disabled' : ''}>&laquo; Kembali</button>
+                    <button class="btn btn-secondary" onclick="renderQuestion(\${index - 1})" \${index === 0 ? 'disabled' : ''}>&laquo; Kembali</button>
                     <button class="btn btn-info" type="button" data-bs-toggle="offcanvas" data-bs-target="#exam-nav-panel">Daftar Soal</button>
-                    ${index === totalQuestions - 1 
+                    \${index === totalQuestions - 1 
                         ? `<button class="btn btn-success" onclick="confirmFinish()">Selesaikan Ujian</button>`
-                        : `<button class="btn btn-primary" onclick="renderQuestion(${index + 1})">Berikutnya &raquo;</button>`
+                        : `<button class="btn btn-primary" onclick="renderQuestion(\${index + 1})">Berikutnya &raquo;</button>`
                     }
                 `;
             }
