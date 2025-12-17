@@ -665,7 +665,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'update_city' && $_SERVER['REQ
 
 // ===============================================
 // START CHALLENGE (buat session dari komposisi tantangan)
-// ===============================================
 if (isset($_GET['action']) && $_GET['action'] === 'start_challenge') {
   $token = $_GET['token'] ?? '';
   if ($token === '') {
@@ -5661,7 +5660,7 @@ JS;
         navigator.share({ title: 'Tantangan Kuis QUIZB', text: 'Ikuti tantangan ini:', url });
         return;
       }
-    } catch(e){ /* lanjut ke copy */ }
+    } catch(e){ // lanjut ke copy }
 
     // Fallback: salin ke clipboard (desktop)
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -9865,7 +9864,7 @@ function seed_data()
 
 // >>> GANTI SELURUH FUNGSI view_qmanage() DENGAN KODE YANG SAMA PERSIS DENGAN YANG ADA DI FILE ANDA <<<
 /*
-/* Deprecated - moved to actions/qmanage.php */
+Deprecated - moved to actions/qmanage.php
 function view_qmanage_deprecated()
 {
   if (!is_admin()) {
