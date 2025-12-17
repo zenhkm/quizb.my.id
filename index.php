@@ -311,9 +311,11 @@ if ($page === 'play' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($page === 'qmanage' && is_admin() && $_SERVER['REQUEST_METHOD'] === 'POST') {
   qmanage_post();
 }
+/*
 if ($page === 'crud' && is_admin() && $_SERVER['REQUEST_METHOD'] === 'POST') {
   crud_post();
 }
+*/
 if (isset($_GET['action']) && $_GET['action'] === 'tambah_anggota') {
   handle_tambah_anggota();
 }
@@ -367,7 +369,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_quiz') {
   api_get_quiz(); // Panggil fungsi API yang baru kita buat
 }
 if (isset($_GET['action']) && $_GET['action'] === 'download_questions') {
-  handle_download_questions();
+  require 'actions/download_questions.php';
 }
 if (isset($_GET['action']) && $_GET['action'] === 'api_submit_answers') {
   api_submit_answers(); // Panggil fungsi API yang baru kita buat
@@ -391,10 +393,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'save_student_class' && $_SERV
   handle_save_student_class();
 }
 if ($page === 'teacher_crud' && (is_pengajar() || is_admin())) {
-    view_crud_pengajar();
+    require 'actions/teacher_crud.php';
 }
 if ($page === 'teacher_qmanage' && (is_pengajar() || is_admin())) {
-    view_qmanage_pengajar();
+    require 'actions/teacher_qmanage.php';
 }
 if (isset($_GET['action']) && $_GET['action'] === 'crud_post_pengajar' && (is_pengajar() || is_admin())) {
     crud_post_pengajar();
@@ -825,10 +827,10 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     view_broadcast();
     break;
   case 'subthemes':
-    view_subthemes();
+    require 'actions/subthemes.php';
     break;
   case 'titles':
-    view_titles();
+    require 'actions/titles.php';
     break;
   case 'play':
     require 'actions/play.php';
@@ -840,10 +842,10 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     view_admin();
     break;
   case 'challenge':
-    view_challenge();
+    require 'actions/challenge.php';
     break;
   case 'qmanage':
-    view_qmanage();
+    require 'actions/qmanage.php';
     break;
   case 'teacher_crud':
     // handled earlier via direct call (see above); avoid falling through to default 404
@@ -855,10 +857,10 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     view_setting();
     break;
   case 'challenges':
-    view_challenges_list();
+    require 'actions/challenges_list.php';
     break;
   case 'crud':
-    view_crud();
+    require 'actions/crud.php';
     break;
   case 'about':
     view_about();
@@ -876,7 +878,7 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     view_welcome();
     break;
   case 'download_soal':
-    view_download_soal();
+    require 'actions/download_soal.php';
     break;
   case 'notifikasi':
     view_notifikasi();
@@ -885,14 +887,13 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     if (!guard_admin()) {
       break;
     }
-    view_difficulty_titles();
+    require 'actions/difficulty_titles.php';
     break;
   case 'difficulty_questions':
     if (!guard_admin()) {
       break;
     }
-    $title_id = isset($_GET['title_id']) ? (int)$_GET['title_id'] : 0;
-    view_difficulty_questions($title_id);
+    require 'actions/difficulty_questions.php';
     break;
  case 'review': // <--- BLOK BARU
     if (!uid()) redirect('./');
@@ -1268,11 +1269,11 @@ function api_get_page_content()
       break;
     case 'teacher_crud':
       // Render teacher CRUD content for SPA/api_get_page_content
-      view_crud_pengajar();
+      require 'actions/teacher_crud.php';
       break;
     case 'teacher_qmanage':
       // Render teacher question management content for SPA/api_get_page_content
-      view_qmanage_pengajar();
+      require 'actions/teacher_qmanage.php';
       break;
     /* ▼▼▼ TAMBAHKAN KASUS BARU UNTUK HALAMAN TUGAS INI ▼▼▼ */
     case 'student_tasks':
@@ -3437,6 +3438,7 @@ function view_themes()
 // =======================
 
 
+/*
 function view_subthemes()
 {
   // 1. Ambil ID tema dari URL
@@ -3480,12 +3482,14 @@ function view_subthemes()
   }
   echo '</div>';
 }
+*/
 
 
 // =======================
 // AKHIR FUNGSI SUBTHEME
 // =======================
 
+/*
 function view_titles()
 {
   $sub_id = (int)($_GET['subtheme_id'] ?? 0);
@@ -3518,7 +3522,10 @@ function view_titles()
   }
   echo '</div>';
 }
+*/
 
+/*
+/*
 function view_difficulty_titles()
 {
   $pdo = pdo_instance();
@@ -3613,8 +3620,11 @@ function view_difficulty_titles()
   }
   echo '</div></div>';
 }
+*/
+*/
 
 
+/*
 function view_difficulty_questions(int $title_id)
 {
   $pdo = pdo_instance();
@@ -3742,6 +3752,7 @@ function view_difficulty_questions(int $title_id)
   }
   echo '</div></div>';
 }
+*/
 
 
 
@@ -5535,6 +5546,7 @@ function view_review_summary()
 
 
 // === VIEW CHALLENGE ===
+/*
 function view_challenge()
 {
   $token = $_GET['token'] ?? '';
@@ -5694,11 +5706,13 @@ JS;
     echo '</div>';
   }
 }
+*/
 
 
 // ===============================================
 // VIEW: DAFTAR CHALLENGE (login-only)
 // ===============================================
+/*
 function view_challenges_list()
 {
   if (!uid()) {
@@ -5780,6 +5794,7 @@ function view_challenges_list()
   // container already closed earlier in some branches; avoid double-close
   // penutup .container (echo removed to avoid duplicate close)
 }
+*/
 
 
 /**
@@ -8425,6 +8440,7 @@ function handle_save_subscription() {
 
 
 // === VIEW CRUD ===
+/*
 function view_crud()
 {
   if (!is_admin()) {
@@ -8801,6 +8817,7 @@ JS;
   // ====================================================================
 
 }
+*/
 
 
 
@@ -8809,7 +8826,8 @@ JS;
 // AKHIR VIEW CRUD
 // ===============================================
 
-function view_crud_pengajar()
+/* Deprecated - moved to actions/teacher_crud.php */
+function view_crud_pengajar_deprecated()
 {
     if (!is_pengajar() && !is_admin()) {
         echo '<div class="alert alert-danger">Akses ditolak.</div>';
@@ -9194,6 +9212,7 @@ function handle_delete_institusi()
 // AWAL CRUD POST
 // ===============================================
 
+/*
 function crud_post()
 {
   $act = $_POST['act'] ?? $_GET['act'] ?? '';
@@ -9382,6 +9401,7 @@ function crud_post()
 
 
 }
+*/
 
 // ===============================================
 // AKHIR CRUD POST
@@ -9847,7 +9867,9 @@ function seed_data()
 
 
 // >>> GANTI SELURUH FUNGSI view_qmanage() DENGAN KODE YANG SAMA PERSIS DENGAN YANG ADA DI FILE ANDA <<<
-function view_qmanage()
+/*
+/* Deprecated - moved to actions/qmanage.php */
+function view_qmanage_deprecated()
 {
   if (!is_admin()) {
     echo '<div class="alert alert-warning">Akses admin diperlukan.</div>';
@@ -10244,6 +10266,7 @@ function view_qmanage()
     HTML;
   echo '</div></div>';
 }
+*/
 
 
 function qmanage_post()
@@ -10408,7 +10431,8 @@ function qmanage_post()
   }
 }
 
-function view_qmanage_pengajar()
+/* Deprecated - moved to actions/teacher_qmanage.php and views/teacher_qmanage.php */
+function view_qmanage_pengajar_deprecated()
 {
     if (!is_pengajar() && !is_admin()) {
         echo '<div class="alert alert-danger">Akses admin/pengajar diperlukan.</div>';
@@ -10645,7 +10669,8 @@ function view_qmanage_pengajar()
 // ===============================================
 // THE END
 // ===============================================
-function view_download_soal()
+/* Deprecated - moved to actions/download_soal.php */
+function view_download_soal_deprecated()
 {
     if (!uid()) redirect('./');
     if (is_admin()) redirect('./'); // Admin tidak perlu akses ini
@@ -10721,7 +10746,8 @@ function view_download_soal()
     echo '</div>';
 }
 
-function handle_download_questions()
+/* Deprecated - moved to actions/download_questions.php */
+function handle_download_questions_deprecated()
 {
     if (!uid()) die('Akses ditolak');
     if (is_admin()) die('Admin tidak perlu download');
