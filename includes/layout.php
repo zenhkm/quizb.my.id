@@ -1343,6 +1343,40 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
           });
       }
 
+      // Helper: update badge counts (desktop + mobile) via lightweight API
+      async function updateBadgesViaAPI(){
+        try{
+          const res = await fetch('?action=get_unread_counts');
+          if(!res.ok) return;
+          const data = await res.json();
+          const msgCount = Number(data.messages||0);
+          const notifCount = Number(data.notifications||0);
+
+          function setBadge(anchor, count){
+            if(!anchor) return;
+            let badge = anchor.querySelector('.badge');
+            if(count>0){
+              if(!badge){
+                badge = document.createElement('span');
+                badge.className = 'badge bg-danger rounded-pill';
+                anchor.appendChild(badge);
+              }
+              badge.textContent = String(count);
+            } else if(badge){
+              badge.remove();
+            }
+          }
+
+          // Desktop header buttons
+          setBadge(document.querySelector('a.nav-item-icon[href="?page=pesan"]'), msgCount);
+          setBadge(document.querySelector('a.nav-item-icon[href="?page=notifikasi"]'), notifCount);
+
+          // Mobile footer nav links
+          setBadge(document.querySelector('.mobile-nav-footer a.spa-nav-link[data-page="pesan"]'), msgCount);
+          setBadge(document.querySelector('.mobile-nav-footer a.spa-nav-link[data-page="notifikasi"]'), notifCount);
+        }catch(e){/* ignore */}
+      }
+
       // INI ADALAH FUNGSI loadPage YANG SUDAH DIPERBAIKI TOTAL
       async function loadPage(page, pushState = true) {
           if (!mainContent) return;
@@ -1384,6 +1418,8 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
               document.title = `${pageTitle} | QuizB`;
               
               window.scrollTo(0, 0);
+              // Refresh badges after content loads (e.g., opening Notifikasi marks as read)
+              updateBadgesViaAPI();
 
           } catch (error) {
               mainContent.innerHTML = '<div class="alert alert-danger">Gagal memuat halaman. Silakan coba lagi.</div>';
@@ -1416,6 +1452,8 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
 
       const initialPage = new URLSearchParams(window.location.search).get('page') || 'home';
       history.replaceState({ page: initialPage }, '', window.location.href);
+        // Initial badges update on first load (SPA)
+        updateBadgesViaAPI();
   });
   </script>
 JS;

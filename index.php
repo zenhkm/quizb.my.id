@@ -359,6 +359,32 @@ if ($page === 'kelola_user' && is_admin() && $_SERVER['REQUEST_METHOD'] === 'POS
 if (isset($_GET['action']) && $_GET['action'] === 'api_get_page_content') {
   api_get_page_content();
 }
+// Lightweight API: unread counts for messages and notifications (for SPA badge refresh)
+if (isset($_GET['action']) && $_GET['action'] === 'get_unread_counts') {
+  header('Content-Type: application/json; charset=UTF-8');
+  $messages_unread = 0;
+  $notifications_unread = 0;
+  if (uid()) {
+    $uid = uid();
+    try {
+      $messages_unread = (int)q("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = 0", [$uid])->fetchColumn();
+    } catch (Throwable $e) { $messages_unread = 0; }
+    try {
+      $total_broadcast = (int)q("SELECT COUNT(*) FROM broadcast_notifications")->fetchColumn();
+      $read_broadcast  = (int)q("SELECT COUNT(*) FROM user_notification_reads WHERE user_id = ?", [$uid])->fetchColumn();
+      $unread_broadcast = max(0, $total_broadcast - $read_broadcast);
+    } catch (Throwable $e) { $unread_broadcast = 0; }
+    try {
+      $unread_personal = (int)q("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0", [$uid])->fetchColumn();
+    } catch (Throwable $e) { $unread_personal = 0; }
+    $notifications_unread = $unread_broadcast + $unread_personal;
+  }
+  echo json_encode([
+    'messages' => $messages_unread,
+    'notifications' => $notifications_unread
+  ]);
+  exit;
+}
 if (isset($_GET['action']) && $_GET['action'] === 'kirim_rekap') {
   handle_kirim_rekap();
 }
