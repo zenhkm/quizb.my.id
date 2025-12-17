@@ -144,7 +144,7 @@ echo <<<JS
         for(let i=0; i < totalQuestions; i++) {
             const qId = quizState.questions[i].id;
             const isAnswered = quizState.userAnswers.has(qId);
-            navButtonsHTML += `<a href="#" class="nav-link \${isAnswered ? 'answered' : ''}" onclick="renderQuestion(\${i}); return false;">\${i + 1}</a>`;
+            navButtonsHTML += `<a href="#" class="nav-link \${isAnswered ? 'answered' : ''}" data-q-index="\${i}">\${i + 1}</a>`;
         }
 
         const shell = document.getElementById('exam-shell');
@@ -155,6 +155,8 @@ echo <<<JS
             if (qTextEl) qTextEl.textContent = question.text;
             const choicesEl = document.getElementById('exam-choices-grid');
             if (choicesEl) choicesEl.innerHTML = choicesHTML;
+            const qCounterEl = document.getElementById('exam-q-counter');
+            if (qCounterEl) qCounterEl.textContent = 'Soal ' + (index + 1) + ' dari ' + totalQuestions;
             const controlsEl = document.getElementById('exam-controls');
             if (controlsEl) {
                 controlsEl.innerHTML = `
@@ -165,6 +167,24 @@ echo <<<JS
                         : `<button class="btn btn-primary" onclick="renderQuestion(\${index + 1})">Berikutnya &raquo;</button>`
                     }
                 `;
+            }
+            // Ensure nav clicks work on mobile: delegate and close offcanvas
+            const navPanel = document.getElementById('exam-nav-panel');
+            if (navPanel && !navPanel.dataset.listenerInstalled) {
+                navPanel.addEventListener('click', (e) => {
+                    const link = e.target.closest('[data-q-index]');
+                    if (!link) return;
+                    e.preventDefault();
+                    const idx = parseInt(link.dataset.qIndex);
+                    renderQuestion(idx);
+                    if (window.bootstrap) {
+                        try {
+                            const oc = bootstrap.Offcanvas.getOrCreateInstance(navPanel);
+                            oc.hide();
+                        } catch (_) {}
+                    }
+                }, true);
+                navPanel.dataset.listenerInstalled = '1';
             }
             updateExamProgress();
             return;
@@ -185,6 +205,7 @@ echo <<<JS
             <div id="exam-shell" class="quiz-container">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4 class="h5 m-0">\${escapeHTML(quizState.title)}</h4>
+                    <span id="exam-q-counter" class="badge bg-secondary"></span>
                     <span id="exam-timer-display" class="badge text-bg-danger fs-6">Sisa Waktu: --:--</span>
                 </div>
                 <div class="progress mb-3" style="height: 5px;"><div class="progress-bar" id="exam-progress-bar"></div></div>
@@ -201,6 +222,27 @@ echo <<<JS
                 </div>
             </div>
         `;
+        // Initialize question counter text
+        const qCounterElInit = document.getElementById('exam-q-counter');
+        if (qCounterElInit) qCounterElInit.textContent = 'Soal ' + (index + 1) + ' dari ' + totalQuestions;
+        // Attach nav click handler once
+        const navPanelInit = document.getElementById('exam-nav-panel');
+        if (navPanelInit && !navPanelInit.dataset.listenerInstalled) {
+            navPanelInit.addEventListener('click', (e) => {
+                const link = e.target.closest('[data-q-index]');
+                if (!link) return;
+                e.preventDefault();
+                const idx = parseInt(link.dataset.qIndex);
+                renderQuestion(idx);
+                if (window.bootstrap) {
+                    try {
+                        const oc = bootstrap.Offcanvas.getOrCreateInstance(navPanelInit);
+                        oc.hide();
+                    } catch (_) {}
+                }
+            }, true);
+            navPanelInit.dataset.listenerInstalled = '1';
+        }
         updateExamProgress();
     }
     
@@ -303,7 +345,7 @@ echo <<<JS
         if (panel) {
             for(let i=0; i<total; i++) {
                 const qId = quizState.questions[i].id;
-                const navLink = panel.querySelector(`a[onclick*="renderQuestion(\${i})"]`);
+                const navLink = panel.querySelector(`a[data-q-index="\${i}"]`);
                 if(navLink) {
                     if(quizState.userAnswers.has(qId)) {
                         navLink.classList.add('answered');
