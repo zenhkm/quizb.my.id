@@ -147,6 +147,30 @@ echo <<<JS
             navButtonsHTML += `<a href="#" class="nav-link \${isAnswered ? 'answered' : ''}" onclick="renderQuestion(\${i}); return false;">\${i + 1}</a>`;
         }
 
+        const shell = document.getElementById('exam-shell');
+        if (shell) {
+            const navWrap = document.getElementById('exam-nav-body');
+            if (navWrap) navWrap.innerHTML = navButtonsHTML;
+            const qTextEl = document.getElementById('exam-question-text');
+            if (qTextEl) qTextEl.textContent = question.text;
+            const choicesEl = document.getElementById('exam-choices-grid');
+            if (choicesEl) choicesEl.innerHTML = choicesHTML;
+            const controlsEl = document.getElementById('exam-controls');
+            if (controlsEl) {
+                controlsEl.innerHTML = `
+                    <button class="btn btn-secondary" onclick="renderQuestion(${index - 1})" ${index === 0 ? 'disabled' : ''}>&laquo; Kembali</button>
+                    <button class="btn btn-info" type="button" data-bs-toggle="offcanvas" data-bs-target="#exam-nav-panel">Daftar Soal</button>
+                    ${index === totalQuestions - 1 
+                        ? `<button class="btn btn-success" onclick="confirmFinish()">Selesaikan Ujian</button>`
+                        : `<button class="btn btn-primary" onclick="renderQuestion(${index + 1})">Berikutnya &raquo;</button>`
+                    }
+                `;
+            }
+            updateExamProgress();
+            return;
+        }
+
+        // Build shell only once so timer/header do not flicker
         appContainer.innerHTML = `
             <div class="offcanvas offcanvas-start" tabindex="-1" id="exam-nav-panel">
               <div class="offcanvas-header">
@@ -154,20 +178,20 @@ echo <<<JS
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
               </div>
               <div class="offcanvas-body">
-                <div class="d-flex flex-wrap">\${navButtonsHTML}</div>
+                <div id="exam-nav-body" class="d-flex flex-wrap">\${navButtonsHTML}</div>
               </div>
             </div>
 
-            <div class="quiz-container">
+            <div id="exam-shell" class="quiz-container">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4 class="h5 m-0">\${escapeHTML(quizState.title)}</h4>
                     <span id="exam-timer-display" class="badge text-bg-danger fs-6">Sisa Waktu: --:--</span>
                 </div>
                 <div class="progress mb-3" style="height: 5px;"><div class="progress-bar" id="exam-progress-bar"></div></div>
-                <div class="quiz-question-box"><h2 class="quiz-question-text">\${escapeHTML(question.text)}</h2></div>
-                <div class="quiz-choices-grid">\${choicesHTML}</div>
+                <div class="quiz-question-box"><h2 id="exam-question-text" class="quiz-question-text">\${escapeHTML(question.text)}</h2></div>
+                <div id="exam-choices-grid" class="quiz-choices-grid">\${choicesHTML}</div>
 
-                <div class="d-flex justify-content-between mt-4">
+                <div id="exam-controls" class="d-flex justify-content-between mt-4">
                     <button class="btn btn-secondary" onclick="renderQuestion(\${index - 1})" \${index === 0 ? 'disabled' : ''}>&laquo; Kembali</button>
                     <button class="btn btn-info" type="button" data-bs-toggle="offcanvas" data-bs-target="#exam-nav-panel">Daftar Soal</button>
                     \${index === totalQuestions - 1 
