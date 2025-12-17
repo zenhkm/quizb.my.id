@@ -5708,7 +5708,6 @@ JS;
 // ===============================================
 // VIEW: DAFTAR CHALLENGE (login-only)
 // ===============================================
-/*
 function view_challenges_list()
 {
   if (!uid()) {
@@ -5790,7 +5789,6 @@ function view_challenges_list()
   // container already closed earlier in some branches; avoid double-close
   // penutup .container (echo removed to avoid duplicate close)
 }
-*/
 
 
 /**
