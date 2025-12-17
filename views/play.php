@@ -62,6 +62,103 @@ echo <<<JS
         userId: {$user_id_js}
     };
 
+    // Best-effort fullscreen + lock controls for exam mode
+    const examLock = {
+        initialized: false,
+        violations: 0,
+        maxViolations: 3,
+        async enterFullscreen() {
+            try {
+                if (document.fullscreenElement) return;
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) {
+                    await elem.requestFullscreen({ navigationUI: 'hide' });
+                }
+            } catch (e) {
+                console.warn('Fullscreen request failed:', e);
+            }
+        },
+        async lockOrientation() {
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('landscape');
+                }
+            } catch (e) {
+                // Orientation lock can fail on unsupported devices/browsers
+            }
+        },
+        blockShortcuts(e) {
+            const key = e.key.toLowerCase();
+            const ctrl = e.ctrlKey || e.metaKey; // meta for mac keyboards
+            const alt = e.altKey;
+
+            // Prevent common navigation/escape shortcuts (best-effort)
+            const blockedCombos = (
+                (key === 'f11') ||
+                (key === 'escape') ||
+                (ctrl && ['w','p','s','l','r','o','a','c','x','v','tab'].includes(key)) ||
+                (alt && ['tab','f4'].includes(key))
+            );
+            if (blockedCombos) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        },
+        preventContextMenu(e) {
+            e.preventDefault();
+        },
+        handleVisibility() {
+            if (document.hidden) {
+                examLock.violations++;
+                alert('Jangan keluar dari tampilan ujian. Pelanggaran: ' + examLock.violations);
+                if (examLock.violations >= examLock.maxViolations) {
+                    alert('Terlalu banyak pelanggaran. Ujian akan diakhiri.');
+                    finishQuiz();
+                }
+            }
+        },
+        async handleFullscreenChange() {
+            if (!document.fullscreenElement) {
+                examLock.violations++;
+                alert('Mode layar penuh keluar. Pelanggaran: ' + examLock.violations);
+                // Coba masuk kembali ke fullscreen
+                await examLock.enterFullscreen();
+                if (examLock.violations >= examLock.maxViolations) {
+                    alert('Terlalu banyak pelanggaran. Ujian akan diakhiri.');
+                    finishQuiz();
+                }
+            }
+        },
+        init() {
+            if (examLock.initialized) return;
+            examLock.initialized = true;
+            // Enter fullscreen and attempt orientation lock
+            examLock.enterFullscreen();
+            examLock.lockOrientation();
+            // Event listeners
+            window.addEventListener('keydown', examLock.blockShortcuts, true);
+            window.addEventListener('contextmenu', examLock.preventContextMenu, true);
+            document.addEventListener('visibilitychange', examLock.handleVisibility, true);
+            document.addEventListener('fullscreenchange', examLock.handleFullscreenChange, true);
+            // Fallback: try fullscreen on first user click (required by some browsers)
+            const clickOnce = () => {
+                examLock.enterFullscreen();
+                document.removeEventListener('click', clickOnce, true);
+            };
+            document.addEventListener('click', clickOnce, true);
+        },
+        teardown() {
+            window.removeEventListener('keydown', examLock.blockShortcuts, true);
+            window.removeEventListener('contextmenu', examLock.preventContextMenu, true);
+            document.removeEventListener('visibilitychange', examLock.handleVisibility, true);
+            document.removeEventListener('fullscreenchange', examLock.handleFullscreenChange, true);
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+    };
+
     async function fetchQuizData() {
         try {
             const response = await fetch(`?action=api_get_quiz`);
@@ -74,6 +171,8 @@ echo <<<JS
             quizState.questions = data.questions;
 
             if(quizState.mode === 'exam' && quizState.questions.length > 0) {
+                // Initialize exam lock safeguards on first load
+                examLock.init();
                 startExamTimer({$examTimerMins});
             }
             renderQuestion(quizState.currentQuestionIndex);
@@ -378,6 +477,8 @@ echo <<<JS
     async function finishQuiz() {
         clearInterval(quizState.examTimerInterval);
         clearInterval(quizState.timerInterval);
+        // Remove lock listeners and exit fullscreen when finishing
+        try { examLock.teardown(); } catch (_) {}
         const loadingMessage = quizState.mode === 'exam' ? 'Ujian Selesai. Menyimpan hasil...' : 'Menyimpan hasil & memuat ringkasan...';
         appContainer.innerHTML = `<div class="text-center p-5"><div class="spinner-border"></div><p class="mt-2">\${loadingMessage}</p></div>`;
         
