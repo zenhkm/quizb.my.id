@@ -803,6 +803,22 @@ if (uid() && ($_SESSION['user']['role'] ?? '') === 'pelajar') {
 }
 // ▲▲▲ AKHIR BLOK BARU ▲▲▲
 
+// =================================================================
+// PRE-HOOK: Jika membuka halaman Notifikasi, tandai sebagai "sudah dibaca"
+// agar badge pada header langsung nol pada render pertama.
+// =================================================================
+if (($page ?? ($_GET['page'] ?? 'home')) === 'notifikasi' && uid()) {
+  try {
+    $uid_now = uid();
+    // 1) Personal notifications -> set is_read=1
+    q("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0", [$uid_now]);
+    // 2) Broadcast notifications -> catat ke user_notification_reads yang belum ada
+    $stmt = pdo()->prepare("INSERT IGNORE INTO user_notification_reads (user_id, notification_id) VALUES (?, ?)");
+    $ids = q("SELECT id FROM broadcast_notifications")->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($ids as $nid) { $stmt->execute([$uid_now, $nid]); }
+  } catch (Throwable $e) { /* ignore */ }
+}
+
 
 // ▲▲▲ AKHIR BLOK PERBAIKAN CACHING ▲▲▲
 // ===============================================
