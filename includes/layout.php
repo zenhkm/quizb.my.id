@@ -1344,6 +1344,34 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
       }
 
       // Helper: update badge counts (desktop + mobile) via lightweight API
+      // Internal utility to set/remove a badge on an anchor element
+      function setBadge(anchor, count){
+        if(!anchor) return;
+        let badge = anchor.querySelector('.badge');
+        if(count>0){
+          if(!badge){
+            badge = document.createElement('span');
+            badge.className = 'badge bg-danger rounded-pill';
+            anchor.appendChild(badge);
+          }
+          badge.textContent = String(count);
+        } else if(badge){
+          badge.remove();
+        }
+      }
+
+      // Expose a quick UI-only clear for immediate feedback on tap
+      function forceClearBadge(page){
+        if(page === 'notifikasi'){
+          setBadge(document.querySelector('a.nav-item-icon[href="?page=notifikasi"]'), 0);
+          setBadge(document.querySelector('.mobile-nav-footer a.spa-nav-link[data-page="notifikasi"]'), 0);
+        }
+        if(page === 'pesan'){
+          setBadge(document.querySelector('a.nav-item-icon[href="?page=pesan"]'), 0);
+          setBadge(document.querySelector('.mobile-nav-footer a.spa-nav-link[data-page="pesan"]'), 0);
+        }
+      }
+
       async function updateBadgesViaAPI(){
         try{
           const res = await fetch('?action=get_unread_counts');
@@ -1351,21 +1379,6 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
           const data = await res.json();
           const msgCount = Number(data.messages||0);
           const notifCount = Number(data.notifications||0);
-
-          function setBadge(anchor, count){
-            if(!anchor) return;
-            let badge = anchor.querySelector('.badge');
-            if(count>0){
-              if(!badge){
-                badge = document.createElement('span');
-                badge.className = 'badge bg-danger rounded-pill';
-                anchor.appendChild(badge);
-              }
-              badge.textContent = String(count);
-            } else if(badge){
-              badge.remove();
-            }
-          }
 
           // Desktop header buttons
           setBadge(document.querySelector('a.nav-item-icon[href="?page=pesan"]'), msgCount);
@@ -1432,12 +1445,16 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
           }
       }
 
-      if (mobileNav) {
+        if (mobileNav) {
           mobileNav.addEventListener('click', function(e) {
               const link = e.target.closest('a.spa-nav-link');
               if (link && link.dataset.page) {
                   e.preventDefault();
                   const page = link.dataset.page;
+              // Give immediate UI feedback for badges on tap
+              if(page === 'notifikasi' || page === 'pesan'){
+                forceClearBadge(page);
+              }
                   if (!link.classList.contains('active')) {
                       loadPage(page, true);
                   }
