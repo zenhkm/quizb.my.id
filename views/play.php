@@ -536,6 +536,13 @@ echo <<<JS
             const result = await response.json();
             
             if (result.ok && result.summaryUrl) {
+                try {
+                    if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+                        if (document.exitFullscreen) document.exitFullscreen();
+                        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                        else if (document.msExitFullscreen) document.msExitFullscreen();
+                    }
+                } catch (_) {}
                 window.location.href = result.summaryUrl;
             } else {
                 throw new Error(result.error || 'Gagal menyimpan hasil.');

@@ -23,7 +23,22 @@ echo '<style>
         .summary-table .correct-answer {
             color: var(--bs-success);
         }
-    </style>';
+        </style>';
+
+// Pastikan keluar dari fullscreen saat masuk halaman ringkasan/review
+echo <<<JS
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    try {
+        if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+        }
+    } catch (_) {}
+});
+</script>
+JS;
 
 $mode_text = '';
 if (isset($session['mode'])) {
