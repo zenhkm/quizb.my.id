@@ -1548,20 +1548,30 @@ function time_elapsed_string($datetime, $full = false)
   $ago = $datetime;
   $diff = $now->diff($ago);
 
-  $diff->w = floor($diff->d / 7);
-  $diff->d -= $diff->w * 7;
+  // Hindari membuat properti dinamis pada DateInterval (PHP 8.2+)
+  $weeks = (int)floor($diff->d / 7);
+  $days  = (int)($diff->d - ($weeks * 7));
 
-  $string = ['y' => 'tahun', 'm' => 'bulan', 'w' => 'minggu', 'd' => 'hari', 'h' => 'jam', 'i' => 'menit', 's' => 'detik'];
-  foreach ($string as $k => &$v) {
-    if ($diff->$k) {
-      $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? '' : '');
-    } else {
-      unset($string[$k]);
+  $units = [
+    'y' => (int)$diff->y,
+    'm' => (int)$diff->m,
+    'w' => $weeks,
+    'd' => $days,
+    'h' => (int)$diff->h,
+    'i' => (int)$diff->i,
+    's' => (int)$diff->s,
+  ];
+
+  $labels = ['y' => 'tahun', 'm' => 'bulan', 'w' => 'minggu', 'd' => 'hari', 'h' => 'jam', 'i' => 'menit', 's' => 'detik'];
+  $parts = [];
+  foreach ($units as $k => $val) {
+    if ($val) {
+      $parts[$k] = $val . ' ' . $labels[$k];
     }
   }
 
-  if (!$full) $string = array_slice($string, 0, 1);
-  return $string ? implode(', ', $string) . ' yang lalu' : 'baru saja';
+  if (!$full) $parts = array_slice($parts, 0, 1);
+  return $parts ? implode(', ', $parts) . ' yang lalu' : 'baru saja';
 }
 // ===============================================
 // AKHIR VIEW NOTIFIKASI
