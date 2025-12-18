@@ -7936,6 +7936,7 @@ function view_monitor_jawaban()
             st.name AS subtheme_name,
             qt.title AS quiz_title,
             qs.id AS session_id,
+        qs.created_at AS session_created_at,
             COALESCE(session_data.total_questions, 0) AS total_questions_attempted,
             COALESCE(session_data.correct_answers, 0) AS correct_answers_attempted,
             COALESCE(submitted_data.total_questions, 0) AS total_questions_submitted,
@@ -7946,6 +7947,7 @@ function view_monitor_jawaban()
             a.batas_waktu,
             a.mode,
             a.jumlah_soal,
+        a.durasi_ujian_menit AS exam_duration_minutes,
             COALESCE(q_count.total_questions_in_title, 0) AS total_questions_in_title,
             CASE 
                 WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
@@ -8095,6 +8097,7 @@ function view_monitor_jawaban()
     echo '<th style="width: 8%">Kelas</th>';
     echo '<th style="width: 12%">Tugas</th>';
     echo '<th style="width: 6%">Status</th>';
+    echo '<th style="width: 8%">Waktu</th>';
     echo '<th style="width: 7%">Benar</th>';
     echo '<th style="width: 7%">%</th>';
     echo '<th style="width: 5%">Nilai</th>';
@@ -8166,6 +8169,31 @@ function view_monitor_jawaban()
         echo '<td><small title="' . h($row['judul_tugas']) . '">' . h(substr($row['judul_tugas'], 0, 18)) . '...</small></td>';
         echo '<td>' . $status_badge . '</td>';
         
+        // Waktu per siswa (mode ujian): sisa waktu jika sedang mengerjakan, durasi pengerjaan jika sudah submit
+        $session_created_ts = !empty($row['session_created_at']) ? strtotime($row['session_created_at']) : 0;
+        $exam_duration_minutes = isset($row['exam_duration_minutes']) ? (int)$row['exam_duration_minutes'] : 0;
+        $time_order = 0;
+        $time_cell_html = '<small class="text-muted">-</small>';
+
+        if ($row['mode'] === 'exam' && $session_created_ts > 0 && $exam_duration_minutes > 0) {
+          if ($row['status'] === 'Sedang Mengerjakan') {
+            $end_ts = $session_created_ts + ($exam_duration_minutes * 60);
+            $remaining = max(0, $end_ts - time());
+            $time_order = $remaining;
+            $minutes = floor($remaining / 60);
+            $seconds = $remaining % 60;
+            $time_cell_html = '<span class="badge bg-primary">' . sprintf('%02d:%02d', $minutes, $seconds) . '</span>';
+          } elseif ($row['status'] === 'Sudah Submit' && $submitted_at_ts > 0) {
+            $spent = max(0, $submitted_at_ts - $session_created_ts);
+            $time_order = $spent;
+            $minutes = floor($spent / 60);
+            $seconds = $spent % 60;
+            $time_cell_html = '<span class="badge bg-secondary">' . sprintf('%02d:%02d', $minutes, $seconds) . '</span>';
+          }
+        }
+
+        echo '<td data-order="' . $time_order . '">' . $time_cell_html . '</td>';
+        
         // Tampilkan data benar/nilai untuk SEMUA status (kecuali "Belum Submit" tanpa data)
         if ($total_soal > 0 || $row['status'] === 'Sudah Submit') {
             // Ada data jawaban (baik submitted maupun draft)
@@ -8202,15 +8230,15 @@ function view_monitor_jawaban()
     
     // --- Inisialisasi DataTables ---
     echo '<script>
-        $(document).ready(function() {
-            $("#monitorTable").DataTable({
+      $(document).ready(function() {
+        $("#monitorTable").DataTable({
                 "language": {
                     "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json"
                 },
-                "order": [[ 9, "desc" ]], // Urutkan berdasarkan Waktu Submit
+          "order": [[ 10, "desc" ]], // Urutkan berdasarkan Waktu Submit (kolom ke-11)
                 "pageLength": 25
             });
-        });
+      });
     </script>';
     // -------------------------------
     
