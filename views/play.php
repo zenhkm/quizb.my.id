@@ -59,6 +59,21 @@ echo <<<'CSS'
     .exam-header .right { justify-self: end; text-align: right; display: flex; gap: .5rem; align-items: center; }
     #exam-timer-display { min-width: 140px; }
     #exam-fs-btn.btn { white-space: nowrap; }
+    /* Compact counter pill */
+    #exam-q-counter {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        padding: .25rem .5rem;
+        border: 1px solid var(--border-1, var(--bs-border-color));
+        background: var(--surface-2, var(--bs-tertiary-bg));
+        color: var(--text-2, var(--bs-secondary-color));
+        border-radius: var(--radius-lg, .75rem);
+        font-weight: 600;
+    }
+    /* Smooth progress bar fill */
+    .progress { height: 6px; border-radius: var(--radius-lg, .75rem); overflow: hidden; }
+    .progress-bar { background: var(--brand, var(--bs-primary)); transition: width var(--transition-base, 180ms ease); }
     /* Responsive: jika layar kecil, biar wrap ke 2 baris tapi tetap rapi */
     @media (max-width: 576px) {
         .exam-header { grid-template-columns: 1fr 1fr; grid-template-areas: 'left right' 'center center'; }
