@@ -25,6 +25,13 @@ echo '<style>
         }
         </style>';
 
+// Pulihkan header & footer bila datang dari halaman play (mode ujian)
+echo '<style>
+    .navbar, .mobile-nav-footer, footer.desktop-footer { display: block !important; }
+    body { padding-top: 75px !important; }
+    @media (max-width: 767.98px) { body { padding-bottom: 70px !important; } }
+</style>';
+
 // Pastikan keluar dari fullscreen saat masuk halaman ringkasan/review
 echo <<<JS
 <script>
