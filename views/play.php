@@ -19,10 +19,28 @@ echo <<<'CSS'
         color: white;
         border-color: var(--bs-primary);
     }
-    .quiz-choice-item.selected {
-        background-color: var(--bs-primary-bg-subtle);
-        border-color: var(--bs-primary);
+    /* Choice chips */
+    .quiz-choices-grid { display: grid; gap: var(--space-3, .75rem); }
+    .quiz-choice-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: var(--surface-1, #fff);
+        color: var(--text-1, inherit);
+        border: 1px solid var(--border-1, #dee2e6);
+        border-radius: var(--radius-lg, .75rem);
+        padding: var(--space-4, 1rem) var(--space-5, 1.5rem);
+        transition: background-color var(--transition-fast, 120ms ease), border-color var(--transition-fast, 120ms ease), box-shadow var(--transition-fast, 120ms ease);
     }
+    .quiz-choice-item:hover { background: var(--surface-2, #f8f9fa); box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,.05)); }
+    .quiz-choice-item:focus { outline: 2px solid transparent; box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand, #0d6efd) 25%, transparent); }
+    .quiz-choice-item.selected {
+        background-color: var(--brand, var(--bs-primary));
+        color: var(--brand-contrast, #fff);
+        border-color: var(--brand, var(--bs-primary));
+        box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,.08));
+    }
+    .quiz-choice-item:disabled { opacity: .7; cursor: not-allowed; }
 
     /* Header exam rapi & simetris */
     .exam-header {
@@ -31,6 +49,10 @@ echo <<<'CSS'
         gap: .5rem;
         align-items: center;
         margin-bottom: .5rem;
+        position: sticky; top: 0; z-index: 2;
+        background: var(--surface-1, var(--bs-body-bg));
+        padding: .25rem .25rem;
+        border-bottom: 1px solid var(--border-1, var(--bs-border-color));
     }
     .exam-header .left { justify-self: start; }
     .exam-header .center { justify-self: center; text-align: center; }
