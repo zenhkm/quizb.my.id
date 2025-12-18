@@ -168,17 +168,33 @@ echo <<<JS
         const totalQuestions = quizState.questions.length;
         const index = quizState.currentQuestionIndex;
         appContainer.innerHTML = `
-            <div class="quiz-container">
-                <div class="d-flex justify-content-between align-items-center mb-2">
+            <div id="exam-shell" class="quiz-container">
+                <div class="exam-header">
+                  <div class="left">
+                    <span id="exam-q-counter" class="badge bg-secondary">Soal \${index + 1} dari \${totalQuestions}</span>
+                  </div>
+                  <div class="center">
                     <h4 class="h5 m-0">\${escapeHTML(quizState.title)}</h4>
-                    <span class="badge bg-secondary">Soal \${index + 1} dari \${totalQuestions}</span>
+                  </div>
+                  <div class="right">
+                    <span id="exam-timer-display" class="badge text-bg-secondary fs-6">Sisa waktu: <b id="timerLabel">{$timerSecs}</b> detik</span>
+                    <button id="exam-fs-btn" type="button" class="btn btn-outline-dark btn-sm" title="Layar Penuh">⤢ Layar Penuh</button>
+                  </div>
                 </div>
-                <div class="progress mb-3" style="height: 5px;"><div class="progress-bar" style="width: \${((index + 1) / totalQuestions) * 100}%;"></div></div>
+                <div class="progress mb-3" style="height: 5px;"><div class="progress-bar" id="exam-progress-bar" style="width: \${((index + 1) / totalQuestions) * 100}%;"></div></div>
                 <div class="quiz-question-box"><h2 class="quiz-question-text">\${escapeHTML(question.text)}</h2></div>
-                <div id="timerWrap" class="text-center mb-3"><span class="badge text-bg-secondary fs-6">Sisa waktu: <b id="timerLabel">{$timerSecs}</b> detik</span></div>
                 <div class="quiz-choices-grid">\${choicesHTML}</div>
             </div>
         `;
+        // Bind fullscreen button
+        const fsBtn = document.getElementById('exam-fs-btn');
+        if (fsBtn && !fsBtn.dataset.listenerInstalled) {
+            fsBtn.addEventListener('click', toggleFullscreen);
+            document.addEventListener('fullscreenchange', updateFullscreenBtn);
+            fsBtn.dataset.listenerInstalled = '1';
+        }
+        updateFullscreenBtn();
+        updateExamProgress();
     }
     
     function renderExamUI(question, choicesHTML) {

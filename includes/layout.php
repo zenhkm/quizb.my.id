@@ -553,9 +553,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     }
   </style>';
 
-  // Hide header/footer/menu during exam mode on play page (server-side flag)
-  $is_exam_mode = (($_GET['page'] ?? '') === 'play') && (($_SESSION['quiz']['mode'] ?? '') === 'exam');
-  if ($is_exam_mode) {
+  // Hide header/footer/menu during active play session (all modes)
+  $is_play_active = (($_GET['page'] ?? '') === 'play') && isset($_SESSION['quiz']['session_id']);
+  if ($is_play_active) {
     echo '<style>
       .navbar, .mobile-nav-footer, footer.desktop-footer { display: none !important; }
       body { padding-top: 0 !important; padding-bottom: 0 !important; }
