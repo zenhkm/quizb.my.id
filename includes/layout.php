@@ -143,6 +143,72 @@ function html_head()
   </style>';
 
   echo '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">';
+
+  // Design tokens & theming (aliases to Bootstrap variables where possible)
+  echo '<style>
+    :root{
+      /* Color aliases */
+      --surface-1: var(--bs-body-bg);
+      --surface-2: var(--bs-tertiary-bg);
+      --border-1: var(--bs-border-color);
+      --text-1: var(--bs-body-color);
+      --text-2: var(--bs-secondary-color);
+      --brand: var(--bs-primary);
+      --brand-contrast: #ffffff;
+
+      /* Spacing scale */
+      --space-1: .25rem; /* 4px */
+      --space-2: .5rem;  /* 8px */
+      --space-3: .75rem; /* 12px */
+      --space-4: 1rem;   /* 16px */
+      --space-5: 1.5rem; /* 24px */
+      --space-6: 2rem;   /* 32px */
+
+      /* Radius */
+      --radius-xs: .25rem;
+      --radius-sm: .375rem;
+      --radius-md: .5rem;
+      --radius-lg: .75rem;
+      --radius-xl: 1rem;
+
+      /* Shadows */
+      --shadow-xs: 0 1px 2px rgba(0,0,0,.05);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.08);
+      --shadow-md: 0 6px 18px rgba(0,0,0,.12);
+
+      /* Motion */
+      --easing-standard: cubic-bezier(.2,.8,.2,1);
+      --transition-fast: 120ms var(--easing-standard);
+      --transition-base: 180ms var(--easing-standard);
+
+      /* Map to Bootstrap radii */
+      --bs-border-radius: var(--radius-md);
+      --bs-border-radius-sm: var(--radius-sm);
+      --bs-border-radius-lg: var(--radius-lg);
+      --bs-border-radius-xl: var(--radius-xl);
+    }
+
+    [data-bs-theme="dark"]{
+      /* Keep aliases tied to Bootstrap dark variables */
+      --surface-1: var(--bs-body-bg);
+      --surface-2: var(--bs-tertiary-bg);
+      --border-1: var(--bs-border-color);
+      --text-1: var(--bs-body-color);
+      --text-2: var(--bs-secondary-color);
+      --brand-contrast: #ffffff;
+    }
+
+    /* Components polish using tokens */
+    .card{ border-radius: var(--bs-border-radius-lg); box-shadow: var(--shadow-xs); }
+    .card.hover, .card:hover{ box-shadow: var(--shadow-sm); transition: box-shadow var(--transition-base); }
+    .btn{ border-radius: var(--bs-border-radius); transition: box-shadow var(--transition-fast), transform var(--transition-fast); }
+    .btn:hover{ transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .btn:active{ transform: translateY(0); box-shadow: var(--shadow-xs); }
+    .badge{ border-radius: calc(var(--bs-border-radius) - 2px); }
+    .form-control, .dropdown-menu, .offcanvas, .modal-content{ border-radius: var(--bs-border-radius-lg); }
+    .progress{ background-color: var(--surface-2); }
+    .progress-bar{ transition: width var(--transition-base); }
+  </style>';
   // SweetAlert2 CDN
   echo '<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>';
 
