@@ -8334,7 +8334,6 @@ function view_monitor_jawaban()
             }
         }
 
-        echo '<tr>';
         echo '<tr data-user-id="' . (int)$row['user_id'] . '" data-assignment-id="' . (int)$row['assignment_id'] . '">';
         echo '<td>' . $no++ . '</td>';
         echo '<td><strong>' . h($row['user_name']) . '</strong></td>';
