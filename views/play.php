@@ -1,7 +1,7 @@
 <?php
 // views/play.php
 
-// Siapkan CSS khusus untuk panel navigasi soal
+// Siapkan CSS khusus untuk panel navigasi soal & header exam
 echo '<style>
     #exam-nav-panel .nav-link { 
         border: 1px solid var(--bs-border-color);
@@ -21,6 +21,27 @@ echo '<style>
     .quiz-choice-item.selected {
         background-color: var(--bs-primary-bg-subtle);
         border-color: var(--bs-primary);
+    }
+
+    /* Header exam rapi & simetris */
+    .exam-header {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: .5rem;
+        align-items: center;
+        margin-bottom: .5rem;
+    }
+    .exam-header .left { justify-self: start; }
+    .exam-header .center { justify-self: center; text-align: center; }
+    .exam-header .right { justify-self: end; text-align: right; display: flex; gap: .5rem; align-items: center; }
+    #exam-timer-display { min-width: 140px; }
+    #exam-fs-btn.btn { white-space: nowrap; }
+    /* Responsive: jika layar kecil, biar wrap ke 2 baris tapi tetap rapi */
+    @media (max-width: 576px) {
+        .exam-header { grid-template-columns: 1fr 1fr; grid-template-areas: 'left right' 'center center'; }
+        .exam-header .left { grid-area: left; }
+        .exam-header .center { grid-area: center; }
+        .exam-header .right { grid-area: right; justify-self: end; }
     }
 </style>';
 
@@ -191,7 +212,7 @@ echo <<<JS
         }
 
         // Build shell only once so timer/header do not flicker
-        appContainer.innerHTML = `
+                appContainer.innerHTML = `
             <div class="offcanvas offcanvas-start" tabindex="-1" id="exam-nav-panel">
               <div class="offcanvas-header">
                 <h5 class="offcanvas-title">Navigasi Soal</h5>
@@ -203,11 +224,18 @@ echo <<<JS
             </div>
 
             <div id="exam-shell" class="quiz-container">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h4 class="h5 m-0">\${escapeHTML(quizState.title)}</h4>
-                    <span id="exam-q-counter" class="badge bg-secondary"></span>
-                    <span id="exam-timer-display" class="badge text-bg-danger fs-6">Sisa Waktu: --:--</span>
-                </div>
+                                <div class="exam-header">
+                                    <div class="left">
+                                        <span id="exam-q-counter" class="badge bg-secondary"></span>
+                                    </div>
+                                    <div class="center">
+                                        <h4 class="h5 m-0">\${escapeHTML(quizState.title)}</h4>
+                                    </div>
+                                    <div class="right">
+                                        <span id="exam-timer-display" class="badge text-bg-danger fs-6">Sisa Waktu: --:--</span>
+                                        <button id="exam-fs-btn" type="button" class="btn btn-outline-dark btn-sm" title="Layar Penuh">⤢ Layar Penuh</button>
+                                    </div>
+                                </div>
                 <div class="progress mb-3" style="height: 5px;"><div class="progress-bar" id="exam-progress-bar"></div></div>
                 <div class="quiz-question-box"><h2 id="exam-question-text" class="quiz-question-text">\${escapeHTML(question.text)}</h2></div>
                 <div id="exam-choices-grid" class="quiz-choices-grid">\${choicesHTML}</div>
@@ -243,6 +271,14 @@ echo <<<JS
             }, true);
             navPanelInit.dataset.listenerInstalled = '1';
         }
+        // Fullscreen button binding (once)
+        const fsBtn = document.getElementById('exam-fs-btn');
+        if (fsBtn && !fsBtn.dataset.listenerInstalled) {
+            fsBtn.addEventListener('click', toggleFullscreen);
+            document.addEventListener('fullscreenchange', updateFullscreenBtn);
+            fsBtn.dataset.listenerInstalled = '1';
+        }
+        updateFullscreenBtn();
         updateExamProgress();
     }
     
@@ -264,6 +300,44 @@ echo <<<JS
                 document.getElementById('exam-timer-display').textContent = `Sisa Waktu: \${mins}:\${secs}`;
             }
         }, 1000);
+    }
+
+    // ===== Fullscreen helpers =====
+    function isFullscreen() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+    }
+    function requestFs(elem) {
+        if (elem.requestFullscreen) return elem.requestFullscreen();
+        if (elem.webkitRequestFullscreen) return elem.webkitRequestFullscreen();
+        if (elem.msRequestFullscreen) return elem.msRequestFullscreen();
+    }
+    function exitFs() {
+        if (document.exitFullscreen) return document.exitFullscreen();
+        if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
+        if (document.msExitFullscreen) return document.msExitFullscreen();
+    }
+    function toggleFullscreen() {
+        const container = document.getElementById('exam-shell') || document.documentElement;
+        if (!isFullscreen()) {
+            requestFs(container);
+        } else {
+            exitFs();
+        }
+    }
+    function updateFullscreenBtn() {
+        const fsBtn = document.getElementById('exam-fs-btn');
+        if (!fsBtn) return;
+        if (isFullscreen()) {
+            fsBtn.textContent = '⤢ Keluar Layar Penuh';
+            fsBtn.classList.remove('btn-outline-dark');
+            fsBtn.classList.add('btn-dark');
+            fsBtn.title = 'Keluar Layar Penuh';
+        } else {
+            fsBtn.textContent = '⤢ Layar Penuh';
+            fsBtn.classList.remove('btn-dark');
+            fsBtn.classList.add('btn-outline-dark');
+            fsBtn.title = 'Layar Penuh';
+        }
     }
 
     function handleAnswerClick(event) {
