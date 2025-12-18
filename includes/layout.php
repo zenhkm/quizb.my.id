@@ -1103,6 +1103,16 @@ if (($_SESSION['user']['role'] ?? '') === 'pengajar') {
   echo '</nav>';
   echo '<div class="container mt-4" id="main-content-container">';
 
+  // Navbar polish: active/hover states and scroll shadow
+  echo '<style>
+    .navbar{ box-shadow: var(--shadow-xs); transition: box-shadow var(--transition-base), background-color var(--transition-base); }
+    .navbar.is-scrolled{ box-shadow: var(--shadow-sm); }
+    .navbar .nav-link{ color: var(--text-2); padding: .5rem .75rem; border-radius: var(--radius-sm); transition: background-color var(--transition-fast), color var(--transition-fast); }
+    .navbar .nav-link:hover, .navbar .nav-link:focus{ color: var(--text-1); background: var(--surface-2); }
+    .navbar .nav-link.active, .navbar .nav-link[aria-current="page"]{ color: var(--brand-contrast); background: var(--brand); }
+    .navbar .navbar-brand.brand{ letter-spacing: .2px; }
+  </style>';
+
   // ===================================================================
   // ▲▲▲ AKHIR BLOK HEADER BARU ▲▲▲
   // ===================================================================
@@ -1425,6 +1435,7 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
   // Script ini akan menangani loader untuk Pemuatan Awal dan Navigasi SPA
   document.addEventListener('DOMContentLoaded', function() {
       const pageLoader = document.getElementById('pageLoader');
+      const headerNav = document.querySelector('.navbar');
 
       // Tampilkan loader saat halaman pertama kali dibuka
       if (pageLoader) {
@@ -1436,7 +1447,15 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
           if (pageLoader) {
               pageLoader.classList.add('hidden');
           }
+          if (headerNav) {
+            if (window.scrollY > 2) headerNav.classList.add('is-scrolled');
+          }
       });
+        window.addEventListener('scroll', function(){
+          if (!headerNav) return;
+          if (window.scrollY > 2) headerNav.classList.add('is-scrolled');
+          else headerNav.classList.remove('is-scrolled');
+        }, { passive: true });
       
       if (typeof setupReportButtons === 'function') {
           setupReportButtons();
