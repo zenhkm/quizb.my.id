@@ -1350,30 +1350,27 @@ JS;
   // ===================================================================
   echo '
   <style>
-    .mobile-nav-footer .nav-link { 
-        color: var(--bs-secondary-color); /* Warna ikon tidak aktif */
-    }
-    .mobile-nav-footer .nav-link.active {
-        color: var(--bs-primary); /* Warna ikon aktif */
-    }
-    
-    /* INI ADALAH ATURAN CSS YANG HILANG */
-    .mobile-nav-footer .nav-link .avatar-icon {
-        width: 28px;           /* Menentukan lebar gambar */
-        height: 28px;          /* Menentukan tinggi gambar */
-        border-radius: 50%;    /* Membuat gambar menjadi bulat */
-        border: 2px solid transparent;
-        object-fit: cover;     /* Memastikan gambar terpotong rapi */
-        margin-bottom: 2px;
-    }
-    
-    .mobile-nav-footer .nav-link.active .avatar-icon {
-        border-color: var(--bs-primary);
-    }
-    .mobile-nav-footer .nav-link .badge {
-        position: absolute;
-        top: 0;
-        right: 15px;
+    /* Mobile bottom nav polish (scoped to small screens) */
+    @media (max-width: 767.98px){
+      .mobile-nav-footer{ box-shadow: var(--shadow-sm); backdrop-filter: saturate(180%) blur(8px); }
+      .mobile-nav-footer .nav-container{ padding: 6px 6px; gap: 2px; }
+      .mobile-nav-footer .nav-link{ 
+        color: var(--bs-secondary-color);
+        border-radius: var(--radius-md);
+        padding: 10px 6px;
+        transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+      }
+      .mobile-nav-footer .nav-link:hover{ color: var(--text-1); background: var(--surface-2); }
+      .mobile-nav-footer .nav-link:active{ transform: translateY(0.5px); }
+      .mobile-nav-footer .nav-link.active{ background: var(--brand); color: var(--brand-contrast); }
+
+      /* Avatar icon inside active state keeps a thin brand border */
+      .mobile-nav-footer .nav-link .avatar-icon {
+          width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; object-fit: cover; margin-bottom: 2px;
+      }
+      .mobile-nav-footer .nav-link.active .avatar-icon { border-color: var(--brand-contrast); }
+
+      .mobile-nav-footer .nav-link .badge { position: absolute; top: 2px; right: 12px; }
     }
 </style>
   ';
