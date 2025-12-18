@@ -104,6 +104,44 @@ function html_head()
   // ▲▲▲ AKHIR BLOK KODE UNTUK DI-PASTE ▲▲▲
 
 
+  // Modern typography: Plus Jakarta Sans (with system fallbacks)
+  echo '<link rel="preconnect" href="https://fonts.googleapis.com">';
+  echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'; 
+  echo '<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">';
+
+  // Base typography tokens and hierarchy
+  echo '<style>
+    :root{ 
+      --font-sans: "Plus Jakarta Sans", Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    body{ 
+      font-family: var(--font-sans);
+      font-size: 16px; 
+      line-height: 1.6; 
+      letter-spacing: 0; 
+      -webkit-font-smoothing: antialiased; 
+      -moz-osx-font-smoothing: grayscale;
+    }
+    h1,h2,h3,h4,h5,h6,.h1,.h2,.h3,.h4,.h5,.h6{ 
+      font-family: var(--font-sans); 
+      line-height: 1.25; 
+      letter-spacing: -0.01em; 
+      font-weight: 700;
+    }
+    h1,.h1{ font-weight: 800; }
+    /* Fluid sizes with xl clamps */
+    h1,.h1{ font-size: calc(1.375rem + 1.5vw); }
+    h2,.h2{ font-size: calc(1.325rem + 0.9vw); }
+    h3,.h3{ font-size: calc(1.3rem + 0.6vw); }
+    @media (min-width: 1200px){
+      h1,.h1{ font-size: 2.25rem; }
+      h2,.h2{ font-size: 1.75rem; }
+      h3,.h3{ font-size: 1.5rem; }
+    }
+    small,.small{ letter-spacing: .005em; }
+    .btn{ letter-spacing: .01em; }
+  </style>';
+
   echo '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">';
   // SweetAlert2 CDN
   echo '<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>';
