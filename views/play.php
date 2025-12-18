@@ -2,7 +2,8 @@
 // views/play.php
 
 // Siapkan CSS khusus untuk panel navigasi soal & header exam
-echo '<style>
+echo <<<'CSS'
+<style>
     #exam-nav-panel .nav-link { 
         border: 1px solid var(--bs-border-color);
         margin: 2px;
@@ -43,7 +44,8 @@ echo '<style>
         .exam-header .center { grid-area: center; }
         .exam-header .right { grid-area: right; justify-self: end; }
     }
-</style>';
+</style>
+CSS;
 
 // Siapkan "wadah"
 echo '<div id="quiz-app-container">';
