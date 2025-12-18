@@ -511,6 +511,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_titles') {
   exit;
 }
 
+// API: Monitor Jawaban realtime (guru/admin)
+if (isset($_GET['action']) && $_GET['action'] === 'api_monitor_jawaban') {
+  api_monitor_jawaban();
+}
+
 
 // =================================================================
 // BLOK BARU: QUIZ STARTER GUARD (Mendukung Tugas & Kuis Biasa)
@@ -2161,6 +2166,174 @@ function view_edit_tugas()
     echo '</div>';
 }
 
+  /**
+   * API: Mengambil data Monitor Jawaban (JSON) untuk refresh realtime
+   */
+  function api_monitor_jawaban() {
+    header('Content-Type: application/json; charset=UTF-8');
+
+    $current_user_id = isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : 0;
+    if ($current_user_id <= 0) { echo json_encode(['ok'=>false,'error'=>'unauthorized']); return; }
+
+    $assignment_id = isset($_GET['assignment_id']) ? (int)$_GET['assignment_id'] : 0;
+    $title_id = isset($_GET['title_id']) ? (int)$_GET['title_id'] : 0;
+
+    // Jika assignment disediakan, pastikan milik guru ini
+    if ($assignment_id > 0) {
+      $perm = q("SELECT id FROM assignments WHERE id = ? AND id_pengajar = ?", [$assignment_id, $current_user_id])->fetch();
+      if (!$perm) { echo json_encode(['ok'=>false,'error'=>'forbidden']); return; }
+    }
+
+    $query = "
+      SELECT
+        u.id AS user_id,
+        u.name AS user_name,
+        u.nama_sekolah,
+        u.nama_kelas,
+        a.id AS assignment_id,
+        a.judul_tugas,
+        st.name AS subtheme_name,
+        qt.title AS quiz_title,
+        qs.id AS session_id,
+        qs.created_at AS session_created_at,
+        COALESCE(session_data.total_questions, 0) AS total_questions_attempted,
+        COALESCE(session_data.correct_answers, 0) AS correct_answers_attempted,
+        COALESCE(submitted_data.total_questions, 0) AS total_questions_submitted,
+        COALESCE(submitted_data.correct_answers, 0) AS correct_answers_submitted,
+        asub.submitted_at,
+        r.id AS result_id,
+        r.score AS score_percentage,
+        a.batas_waktu,
+        a.mode,
+        a.jumlah_soal,
+        a.durasi_ujian_menit AS exam_duration_minutes,
+        COALESCE(q_count.total_questions_in_title, 0) AS total_questions_in_title,
+        CASE 
+          WHEN asub.id IS NOT NULL THEN 'Sudah Submit'
+          WHEN session_data.total_questions > 0 AND asub.id IS NULL THEN 'Sedang Mengerjakan'
+          ELSE 'Belum Submit'
+        END AS status,
+        COALESCE(session_data.total_questions, 0) as attempt_count
+      FROM quiz_sessions qs
+      INNER JOIN users u ON qs.user_id = u.id
+      INNER JOIN assignments a ON qs.title_id = a.id_judul_soal
+      INNER JOIN quiz_titles qt ON a.id_judul_soal = qt.id
+      INNER JOIN subthemes st ON qt.subtheme_id = st.id
+      LEFT JOIN assignment_submissions asub ON a.id = asub.assignment_id AND u.id = asub.user_id
+      LEFT JOIN results r ON asub.result_id = r.id AND r.session_id = qs.id
+      LEFT JOIN (
+        SELECT title_id, COUNT(*) as total_questions_in_title
+        FROM questions
+        GROUP BY title_id
+      ) q_count ON qt.id = q_count.title_id
+      LEFT JOIN (
+        SELECT 
+          user_id,
+          session_id,
+          COUNT(DISTINCT question_id) as total_questions,
+          COUNT(DISTINCT CASE WHEN is_correct = 1 THEN question_id END) as correct_answers
+        FROM draft_attempts
+        WHERE status = 'draft'
+        GROUP BY user_id, session_id
+      ) session_data ON qs.user_id = session_data.user_id AND qs.id = session_data.session_id
+      LEFT JOIN (
+        SELECT 
+          att.session_id,
+          COUNT(DISTINCT att.question_id) as total_questions,
+          COUNT(DISTINCT CASE WHEN att.is_correct = 1 THEN att.question_id END) as correct_answers
+        FROM attempts att
+        GROUP BY att.session_id
+      ) submitted_data ON qs.id = submitted_data.session_id
+      WHERE a.id_pengajar = ?
+    ";
+
+    $params = [$current_user_id];
+    if ($assignment_id > 0) { $query .= " AND a.id = ?"; $params[] = $assignment_id; }
+    if ($title_id > 0) { $query .= " AND a.id_judul_soal = ?"; $params[] = $title_id; }
+    $query .= " ORDER BY qs.created_at DESC, a.id DESC, u.name ASC";
+
+    $rows = q($query, $params)->fetchAll();
+    $out = [];
+    foreach ($rows as $row) {
+      $total_soal_ditugaskan = (int)$row['jumlah_soal'];
+      $total_soal_real = (int)$row['total_questions_in_title'];
+      $denominator = $total_soal_ditugaskan > 0 ? $total_soal_ditugaskan : $total_soal_real;
+      if ($row['status'] === 'Sudah Submit') {
+        $jawaban_benar = (int)$row['correct_answers_submitted'];
+        $total_soal = (int)$row['total_questions_submitted'];
+        $prosentase = $denominator > 0 ? round(($jawaban_benar / $denominator) * 100, 2) : 0;
+        $nilai_total = $row['score_percentage'] !== null ? (int)$row['score_percentage'] : '-';
+      } else {
+        $jawaban_benar = (int)$row['correct_answers_attempted'];
+        $total_soal = (int)$row['total_questions_attempted'];
+        $prosentase = $denominator > 0 ? round(($jawaban_benar / $denominator) * 100, 2) : 0;
+        $nilai_total = '-';
+      }
+
+      $submitted_at_ts = $row['submitted_at'] ? strtotime($row['submitted_at']) : 0;
+      $batas_waktu_ts = $row['batas_waktu'] ? strtotime($row['batas_waktu']) : 0;
+      $submitted_at = $row['submitted_at'] ? date('d-m-Y H:i', $submitted_at_ts) : '-';
+      $batas_waktu = $row['batas_waktu'] ? date('d-m-Y H:i', $batas_waktu_ts) : 'Tidak ada';
+
+      if ($row['status'] === 'Sudah Submit') {
+        $status_badge = '<span class="badge bg-success">✅ Submit</span>';
+        $badge_class = $prosentase >= 75 ? 'bg-success' : ($prosentase >= 50 ? 'bg-warning' : 'bg-danger');
+      } elseif ($row['status'] === 'Sedang Mengerjakan') {
+        $status_badge = '<span class="badge bg-info">🟡 Mengerjakan</span>';
+        $badge_class = 'bg-info';
+      } else {
+        $status_badge = '<span class="badge bg-warning text-dark">⏳ Belum</span>';
+        $badge_class = 'bg-secondary';
+        if ($row['batas_waktu']) {
+          $deadline = strtotime($row['batas_waktu']);
+          $now = time();
+          if ($now > $deadline) { $status_badge = '<span class="badge bg-danger">❌ Terlambat</span>'; }
+        }
+      }
+
+      $session_created_ts = !empty($row['session_created_at']) ? strtotime($row['session_created_at']) : 0;
+      $exam_duration_minutes = isset($row['exam_duration_minutes']) ? (int)$row['exam_duration_minutes'] : 0;
+      $time_order = 0;
+      $time_html = '<small class="text-muted">-</small>';
+      if ($row['mode'] === 'exam' && $session_created_ts && $exam_duration_minutes) {
+        if ($row['status'] === 'Sedang Mengerjakan') {
+          $end_ts = $session_created_ts + ($exam_duration_minutes*60);
+          $remaining = max(0, $end_ts - time());
+          $time_order = $remaining;
+          $mm = floor($remaining/60); $ss = $remaining%60;
+          $time_html = '<span class="monitor-time badge bg-primary" data-session-start="'.($session_created_ts).'" data-exam-minutes="'.($exam_duration_minutes).'" data-status="Sedang Mengerjakan" data-submitted-ts="0">'.sprintf('%02d:%02d',$mm,$ss).'</span>';
+        } elseif ($row['status'] === 'Sudah Submit' && $submitted_at_ts) {
+          $spent = max(0, $submitted_at_ts - $session_created_ts);
+          $time_order = $spent;
+          $mm = floor($spent/60); $ss = $spent%60;
+          $time_html = '<span class="monitor-time badge bg-secondary" data-session-start="'.($session_created_ts).'" data-exam-minutes="'.($exam_duration_minutes).'" data-status="Sudah Submit" data-submitted-ts="'.($submitted_at_ts).'">'.sprintf('%02d:%02d',$mm,$ss).'</span>';
+        }
+      }
+
+      $out[] = [
+        'user_id' => (int)$row['user_id'],
+        'assignment_id' => (int)$row['assignment_id'],
+        'status' => $row['status'],
+        'status_badge' => $status_badge,
+        'jawaban_benar' => $jawaban_benar,
+        'denominator' => $denominator,
+        'prosentase' => $prosentase,
+        'badge_class' => $badge_class,
+        'nilai_total' => $nilai_total,
+        'nilai_sort' => is_numeric($nilai_total) ? (int)$nilai_total : -1,
+        'submitted_at_ts' => $submitted_at_ts,
+        'submitted_at' => $submitted_at,
+        'batas_waktu_ts' => $batas_waktu_ts,
+        'batas_waktu' => $batas_waktu,
+        'session_created_ts' => $session_created_ts ? $session_created_ts : 0,
+        'exam_duration_minutes' => $exam_duration_minutes,
+        'time_order' => $time_order,
+        'time_html' => $time_html,
+      ];
+    }
+
+    echo json_encode(['ok'=>true,'rows'=>$out]);
+  }
 
 
 // === VIEW KELOLA TUGAS ===
@@ -8103,7 +8276,7 @@ function view_monitor_jawaban()
     echo '<th style="width: 5%">Nilai</th>';
     echo '<th style="width: 8%">Waktu Submit</th>';
     echo '<th style="width: 10%">Batas Waktu</th>';
-    echo '<th style="width: 8%">Session</th>';
+    // Session column removed per request
     echo '</tr>';
     echo '</thead>';
     echo '<tbody>';
@@ -8162,6 +8335,7 @@ function view_monitor_jawaban()
         }
 
         echo '<tr>';
+        echo '<tr data-user-id="' . (int)$row['user_id'] . '" data-assignment-id="' . (int)$row['assignment_id'] . '">';
         echo '<td>' . $no++ . '</td>';
         echo '<td><strong>' . h($row['user_name']) . '</strong></td>';
         echo '<td><small>' . h($row['nama_sekolah'] ?? '-') . '</small></td>';
@@ -8192,7 +8366,7 @@ function view_monitor_jawaban()
           }
         }
 
-        echo '<td data-order="' . $time_order . '">' . $time_cell_html . '</td>';
+        echo '<td data-order="' . $time_order . '"><span class="monitor-time" data-session-start="' . ($session_created_ts ? floor($session_created_ts/1) : 0) . '" data-exam-minutes="' . $exam_duration_minutes . '" data-status="' . h($row['status']) . '" data-submitted-ts="' . ($submitted_at_ts ?: 0) . '">' . $time_cell_html . '</span></td>';
         
         // Tampilkan data benar/nilai untuk SEMUA status (kecuali "Belum Submit" tanpa data)
         if ($total_soal > 0 || $row['status'] === 'Sudah Submit') {
@@ -8210,7 +8384,6 @@ function view_monitor_jawaban()
         
         echo '<td data-order="' . $submitted_at_ts . '"><small>' . $submitted_at . '</small></td>';
         echo '<td data-order="' . $batas_waktu_ts . '"><small>' . $batas_waktu . '</small></td>';
-        echo '<td><small><code>S#' . $row['session_id'] . '</code></small></td>';
         echo '</tr>';
     }
 
@@ -8229,17 +8402,100 @@ function view_monitor_jawaban()
     echo '</div>';
     
     // --- Inisialisasi DataTables ---
-    echo '<script>
-      $(document).ready(function() {
-        $("#monitorTable").DataTable({
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json"
-                },
-          "order": [[ 10, "desc" ]], // Urutkan berdasarkan Waktu Submit (kolom ke-11)
-                "pageLength": 25
-            });
+    echo <<<'HTML'
+<script>
+  $(document).ready(function() {
+    const table = $("#monitorTable").DataTable({
+      language: { url: "//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json" },
+      order: [[ 10, "desc" ]], // by Waktu Submit
+      pageLength: 25
+    });
+
+    // Helper to find and update a row by user + assignment
+    function updateRow(rowData) {
+      const selector = `tr[data-user-id="${rowData.user_id}"][data-assignment-id="${rowData.assignment_id}"]`;
+      const $tr = $(selector);
+      if ($tr.length === 0) return; // skip if not found
+
+      // Status badge
+      $tr.find("td:eq(5)").html(rowData.status_badge);
+
+      // Waktu
+      const $timeCell = $tr.find("td:eq(6)");
+      $timeCell.attr('data-order', rowData.time_order);
+      $timeCell.html(rowData.time_html);
+      // also update dataset for live countdown
+      const $timeSpan = $timeCell.find('.monitor-time');
+      if ($timeSpan.length) {
+        $timeSpan.attr('data-session-start', rowData.session_created_ts);
+        $timeSpan.attr('data-exam-minutes', rowData.exam_duration_minutes);
+        $timeSpan.attr('data-status', rowData.status);
+        $timeSpan.attr('data-submitted-ts', rowData.submitted_at_ts);
+      }
+
+      // Benar, %, Nilai
+      $tr.find("td:eq(7)").attr('data-order', rowData.jawaban_benar).html(`<span class="badge bg-info">${rowData.jawaban_benar}/${rowData.denominator}</span>`);
+      $tr.find("td:eq(8)").attr('data-order', rowData.prosentase).html(`<span class="badge ${rowData.badge_class}">${rowData.prosentase}%</span>`);
+      $tr.find("td:eq(9)").attr('data-order', rowData.nilai_sort).html(`<strong>${rowData.nilai_total}</strong>`);
+
+      // Waktu Submit, Batas Waktu
+      $tr.find("td:eq(10)").attr('data-order', rowData.submitted_at_ts).html(`<small>${rowData.submitted_at}</small>`);
+      $tr.find("td:eq(11)").attr('data-order', rowData.batas_waktu_ts).html(`<small>${rowData.batas_waktu}</small>`);
+    }
+
+    async function poll() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const assignment_id = urlParams.get('assignment_id') || '';
+        const title_id = urlParams.get('title_id') || '';
+        const qs = new URLSearchParams({ action: 'api_monitor_jawaban', assignment_id, title_id }).toString();
+        const res = await fetch('?' + qs);
+        const json = await res.json();
+        if (json && json.ok && Array.isArray(json.rows)) {
+          json.rows.forEach(updateRow);
+        }
+      } catch (e) {
+        // silent
+      }
+    }
+
+    // initial poll + periodic refresh
+    poll();
+    setInterval(poll, 5000);
+
+    // Live countdown tick each second (client-side)
+    setInterval(() => {
+      $("#monitorTable .monitor-time").each(function() {
+        const $el = $(this);
+        const start = parseInt($el.attr('data-session-start')||'0', 10);
+        const mins = parseInt($el.attr('data-exam-minutes')||'0', 10);
+        const status = $el.attr('data-status')||'';
+        const submittedTs = parseInt($el.attr('data-submitted-ts')||'0', 10);
+        if (!start || !mins) return;
+        let html = '<small class="text-muted">-</small>';
+        let order = 0;
+        if (status === 'Sedang Mengerjakan') {
+          const endTs = start + (mins*60);
+          const remaining = Math.max(0, endTs - Math.floor(Date.now()/1000));
+          const mm = Math.floor(remaining/60);
+          const ss = remaining%60;
+          order = remaining;
+          html = `<span class="badge bg-primary">${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}</span>`;
+        } else if (status === 'Sudah Submit' && submittedTs) {
+          const spent = Math.max(0, submittedTs - start);
+          const mm = Math.floor(spent/60);
+          const ss = spent%60;
+          order = spent;
+          html = `<span class="badge bg-secondary">${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}</span>`;
+        }
+        const $cell = $el.closest('td');
+        $cell.attr('data-order', order);
+        $el.html(html);
       });
-    </script>';
+    }, 1000);
+  });
+</script>
+HTML;
     // -------------------------------
     
     echo '</div>';
