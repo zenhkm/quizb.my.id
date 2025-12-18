@@ -26,10 +26,14 @@ echo '<style>
         </style>';
 
 // Pulihkan header & footer bila datang dari halaman play (mode ujian)
+// Catatan: mobile-nav-footer hanya tampil di mobile agar tidak muncul di desktop
 echo '<style>
-    .navbar, .mobile-nav-footer, footer.desktop-footer { display: block !important; }
+    .navbar, footer.desktop-footer { display: block !important; }
     body { padding-top: 75px !important; }
-    @media (max-width: 767.98px) { body { padding-bottom: 70px !important; } }
+    @media (max-width: 767.98px) {
+        body { padding-bottom: 70px !important; }
+        .mobile-nav-footer { display: block !important; }
+    }
 </style>';
 
 // Pastikan keluar dari fullscreen saat masuk halaman ringkasan/review
