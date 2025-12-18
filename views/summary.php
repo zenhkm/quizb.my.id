@@ -47,8 +47,8 @@ echo '      <div class="display-4 fw-bold text-primary">' . $score . '</div>';
 echo '      <div class="score-details">' . $correct . ' dari ' . $total_questions_in_quiz . ' soal benar</div>';
 echo '  </div>';
 
-// ▼▼▼ LOGIKA UTAMA: SEMBUNYIKAN REVIEW JIKA MODE UJIAN ▼▼▼
-if ($session['mode'] !== 'exam') {
+// ▼▼▼ LOGIKA UTAMA: SEMBUNYIKAN REVIEW JIKA MODE UJIAN (kecuali admin) ▼▼▼
+if ($session['mode'] !== 'exam' || (function_exists('is_admin') && is_admin())) {
     echo '<div class="table-responsive">';
     echo '  <table class="table table-borderless align-middle summary-table">';
     echo '      <thead><tr class="small text-muted"><th style="width: 5%;">#</th><th>Pertanyaan & Jawaban</th><th class="text-end">Status</th></tr></thead>';

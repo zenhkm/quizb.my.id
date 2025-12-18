@@ -7800,6 +7800,7 @@ function view_admin()
 
   // Query dulu, baru hitung
   $recent = q("SELECT 
+    r.id AS result_id,
     r.created_at,
     r.score,
     COALESCE(u.name, CONCAT('Tamu – ', COALESCE(r.city,'Anonim'))) AS display_name,
@@ -7836,12 +7837,13 @@ function view_admin()
       $judul   = $r['quiz_title'] ?? '—';
       $waktu   = $r['created_at'];
       $skor    = (string)$r['score'];
+      $review_link = '?page=review&result_id=' . (int)$r['result_id'];
       $search  = strtolower($display . ' ' . $judul . ' ' . $waktu . ' ' . $skor);
-      echo '<tr data-search="' . h($search) . '">';
+      echo '<tr data-search="' . h($search) . '" class="table-row-link" data-href="' . h($review_link) . '" style="cursor:pointer;">';
       echo   '<td>';
       echo     '<div class="d-flex align-items-center">';
       echo       '<img src="' . h($avatar) . '" class="rounded-circle me-2" width="24" height="24" alt="">';
-      echo       '<span>' . h($display) . '</span>';
+      echo       '<span class="text-decoration-underline">' . h($display) . '</span>';
       echo     '</div>';
       echo   '</td>';
       echo   '<td>' . h($judul) . '</td>';
@@ -7862,6 +7864,14 @@ function view_admin()
 
   echo '</div></div></div>'; // end kolom kanan
   echo '</div>'; // END .row g-4
+
+  // Aktivasi klik baris ke halaman review (admin-only page is guarded di route review)
+  echo '<script>
+    document.addEventListener("click", function(e){
+      const tr = e.target.closest("#tbl-participants tbody tr.table-row-link");
+      if (tr && tr.dataset.href) { window.location.href = tr.dataset.href; }
+    });
+  </script>';
 
   echo "<script>
     document.addEventListener('DOMContentLoaded', function() {
