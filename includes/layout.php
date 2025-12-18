@@ -209,6 +209,55 @@ function html_head()
     .progress{ background-color: var(--surface-2); }
     .progress-bar{ transition: width var(--transition-base); }
   </style>';
+
+  // Color theme: Option B (Emerald) — vibrant green primary, cyan accent, warm neutrals
+  echo '<style>
+    :root {
+      /* Brand */
+      --brand: hsl(160 84% 39%); /* Emerald */
+      --accent: hsl(190 88% 45%); /* Cyan accent */
+      --success: hsl(160 84% 39%);
+      --warning: hsl(38 92% 52%);
+      --danger:  hsl(0 72% 51%);
+
+      /* Neutrals (light) */
+      --neutral-0: hsl(0 0% 100%);
+      --neutral-50: hsl(210 20% 98%);
+      --neutral-100: hsl(210 16% 96%);
+      --neutral-200: hsl(210 14% 92%);
+      --neutral-900: hsl(210 10% 15%);
+
+      /* Bootstrap mapping (light) */
+      --bs-primary: var(--brand);
+      --bs-link-color: var(--brand);
+      --bs-success: var(--success);
+      --bs-warning: var(--warning);
+      --bs-danger:  var(--danger);
+      --bs-body-bg: var(--neutral-0);
+      --bs-tertiary-bg: var(--neutral-100);
+      --bs-border-color: var(--neutral-200);
+      --bs-body-color: var(--neutral-900);
+      --bs-secondary-color: hsl(210 9% 40%);
+    }
+
+    [data-bs-theme="dark"] {
+      /* Brand (slightly brighter in dark) */
+      --brand: hsl(160 84% 47%);
+      --accent: hsl(190 90% 55%);
+      --success: hsl(160 84% 47%);
+      --warning: hsl(40 95% 60%);
+      --danger:  hsl(0 75% 60%);
+
+      /* Neutrals (dark) */
+      --bs-body-bg: hsl(220 18% 10%);
+      --bs-tertiary-bg: hsl(220 16% 13%);
+      --bs-border-color: hsl(220 12% 20%);
+      --bs-body-color: hsl(220 20% 88%);
+      --bs-secondary-color: hsl(220 12% 70%);
+      --bs-primary: var(--brand);
+      --bs-link-color: var(--brand);
+    }
+  </style>';
   // SweetAlert2 CDN
   echo '<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>';
 
