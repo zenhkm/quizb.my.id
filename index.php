@@ -28,7 +28,7 @@ register_shutdown_function(function () {
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/layout.php';
-require_once __DIR__ . '/others/cronjob/wa.php';
+require_once __DIR__ . '/wa.php';
 
 // === SESSION: sangat awal, sebelum ada output apa pun ===
 if (session_status() === PHP_SESSION_NONE) {
@@ -1935,6 +1935,8 @@ function handle_kirim_rekap() {
         echo json_encode(['ok' => false, 'error' => 'Akses ditolak.']);
         exit;
     }
+
+    
 
     $id_pengajar = uid();
     $assignment_id = (int)($_POST['assignment_id'] ?? 0);
