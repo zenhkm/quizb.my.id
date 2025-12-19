@@ -7752,7 +7752,7 @@ function view_admin()
   echo '<div class="col-12 col-lg-6"><div class="card"><div class="card-body">';
 
   // Query dulu, baru hitung
-  $recentUsers = q("SELECT name, email, created_at 
+  $recentUsers = q("SELECT id, name, email, created_at 
                   FROM users 
                   ORDER BY created_at DESC 
                   LIMIT 300")->fetchAll();
@@ -7778,7 +7778,12 @@ function view_admin()
     foreach ($recentUsers as $u) {
       $search = strtolower(($u['name'] ?? '') . ' ' . ($u['email'] ?? '') . ' ' . ($u['created_at'] ?? ''));
       echo '<tr data-search="' . h($search) . '">';
-      echo   '<td>' . h($u['name']) . '</td>';
+      // Jadikan nama bisa diklik menuju profile jika ada id
+      if (!empty($u['id'])) {
+        echo   '<td><a href="?page=profile&user_id=' . (int)$u['id'] . '" class="text-body text-decoration-none">' . h($u['name']) . '</a></td>';
+      } else {
+        echo   '<td>' . h($u['name']) . '</td>';
+      }
       echo   '<td>' . h($u['email']) . '</td>';
       echo   '<td>' . h($u['created_at']) . '</td>';
       echo '</tr>';
