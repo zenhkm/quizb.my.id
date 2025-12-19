@@ -1028,7 +1028,8 @@ JS;
   // Beri body class "backend" untuk halaman admin/kelola agar styling spesifik bisa diterapkan
   $page = $_GET['page'] ?? 'home';
   $backendPages = ['crud','qmanage','teacher_crud','teacher_qmanage'];
-  $bodyClass = in_array($page, $backendPages, true) ? ' class="backend"' : '';
+  $isBackend = in_array($page, $backendPages, true) || ($page === 'profile' && is_admin());
+  $bodyClass = $isBackend ? ' class="backend"' : '';
   echo '</head><body' . $bodyClass . '>';
 
   // ===================================================================

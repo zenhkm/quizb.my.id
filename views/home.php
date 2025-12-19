@@ -295,10 +295,10 @@
   // Widget Peserta Terbaru
   echo '<h5 class="widget-title">🏆 Peserta Terbaru</h5>';
   echo '<div class="list-group sidebar-widget">';
-  foreach ($recent as $r) {
-    $avatar = !empty($r['avatar']) ? $r['avatar'] : 'https://www.gravatar.com/avatar/?d=mp&s=40';
-    $profile_url = $is_visitor_logged_in && !empty($r['user_id']) ? '?page=profile&user_id=' . $r['user_id'] : '#';
-    echo '<a href="' . $profile_url . '" class="list-group-item list-group-item-action p-2">';
+    foreach ($recent as $r) {
+        $avatar = !empty($r['avatar']) ? $r['avatar'] : 'https://www.gravatar.com/avatar/?d=mp&s=40';
+        $profile_url = !empty($r['user_id']) ? '?page=profile&user_id=' . $r['user_id'] : '#';
+        echo '<a href="' . $profile_url . '" class="list-group-item list-group-item-action p-2">';
     echo '  <div class="d-flex align-items-center">';
     echo '    <img src="' . h($avatar) . '" class="rounded-circle me-3" width="40" height="40" alt="Avatar">';
     echo '    <div style="line-height: 1.3;">';
