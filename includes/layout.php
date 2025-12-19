@@ -210,6 +210,12 @@ function html_head()
     .progress-bar{ transition: width var(--transition-base); }
   </style>';
 
+  // Styling khusus backend: hilangkan garis bawah pada link
+  echo '<style>
+    .backend a { text-decoration: none; }
+    .backend a:hover, .backend a:focus { text-decoration: none; }
+  </style>';
+
   // Color theme: Option B (Emerald) — vibrant green primary, cyan accent, warm neutrals
   echo '<style>
     :root {
@@ -1019,7 +1025,11 @@ JS;
   // ▼▼▼ PASTE BLOK HEADER BARU INI ▼▼▼
   // ===================================================================
   // Kembalikan output normal head/body — pastikan tiap view menutup div sendiri
-  echo '</head><body>';
+  // Beri body class "backend" untuk halaman admin/kelola agar styling spesifik bisa diterapkan
+  $page = $_GET['page'] ?? 'home';
+  $backendPages = ['crud','qmanage','teacher_crud','teacher_qmanage'];
+  $bodyClass = in_array($page, $backendPages, true) ? ' class="backend"' : '';
+  echo '</head><body' . $bodyClass . '>';
 
   // ===================================================================
   // ▼▼▼ 2. LETAKKAN BLOK HTML INI TEPAT SETELAH echo '</head><body>'; ▼▼▼
