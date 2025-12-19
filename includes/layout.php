@@ -212,8 +212,21 @@ function html_head()
 
   // Styling khusus backend: hilangkan garis bawah pada link
   echo '<style>
-    .backend a { text-decoration: none; }
-    .backend a:hover, .backend a:focus { text-decoration: none; }
+    .backend a,
+    .backend a:visited,
+    .backend a:hover,
+    .backend a:focus,
+    .backend a:active {
+      text-decoration: none !important;
+    }
+    .backend .list-group-item a,
+    .backend .list-group-item a:visited,
+    .backend .list-group-item a:hover,
+    .backend .list-group-item a:focus,
+    .backend .list-group-item a:active {
+      text-decoration: none !important;
+      color: inherit;
+    }
   </style>';
 
   // Color theme: Option B (Emerald) — vibrant green primary, cyan accent, warm neutrals
