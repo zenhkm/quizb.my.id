@@ -7777,11 +7777,13 @@ function view_admin()
     echo     '<tbody>';
     foreach ($recentUsers as $u) {
       $search = strtolower(($u['name'] ?? '') . ' ' . ($u['email'] ?? '') . ' ' . ($u['created_at'] ?? ''));
-      echo '<tr data-search="' . h($search) . '">';
-      // Jadikan nama bisa diklik menuju profile jika ada id
+      // Jika ada id, jadikan seluruh baris sebagai tautan ke profile
       if (!empty($u['id'])) {
-        echo   '<td><a href="?page=profile&user_id=' . (int)$u['id'] . '" class="text-body text-decoration-none">' . h($u['name']) . '</a></td>';
+        $profile_link = '?page=profile&user_id=' . (int)$u['id'];
+        echo '<tr data-search="' . h($search) . '" class="table-row-link" data-href="' . h($profile_link) . '" style="cursor:pointer;">';
+        echo   '<td><a href="' . h($profile_link) . '" class="text-body text-decoration-none d-block">' . h($u['name']) . '</a></td>';
       } else {
+        echo '<tr data-search="' . h($search) . '">';
         echo   '<td>' . h($u['name']) . '</td>';
       }
       echo   '<td>' . h($u['email']) . '</td>';
@@ -7886,9 +7888,12 @@ function view_admin()
   // Aktivasi klik baris ke halaman review (admin-only page is guarded di route review)
   echo '<script>
     document.addEventListener("click", function(e){
-      const tr = e.target.closest("#tbl-participants tbody tr.table-row-link");
-      // Jangan override klik pada tautan agar klik nama menuju profil tetap berfungsi
-      if (tr && tr.dataset.href && !e.target.closest("a")) { window.location.href = tr.dataset.href; }
+      // Table: peserta (review) — jangan override klik pada link internal
+      const trp = e.target.closest("#tbl-participants tbody tr.table-row-link");
+      if (trp && trp.dataset.href && !e.target.closest("a")) { window.location.href = trp.dataset.href; }
+      // Table: users — jika klik pada baris (kecuali klik pada tombol/elemen interaktif lain), menuju profile
+      const tru = e.target.closest("#tbl-users tbody tr.table-row-link");
+      if (tru && tru.dataset.href && !e.target.closest("button, input, textarea, select")) { window.location.href = tru.dataset.href; }
     });
   </script>';
 
