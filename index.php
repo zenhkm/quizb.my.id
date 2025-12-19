@@ -7806,6 +7806,7 @@ function view_admin()
     r.created_at,
     r.score,
     COALESCE(u.name, CONCAT('Tamu – ', COALESCE(r.city,'Anonim'))) AS display_name,
+    u.id AS user_id,
     u.avatar,
     qt.title AS quiz_title
   FROM results r
@@ -7843,10 +7844,20 @@ function view_admin()
       $search  = strtolower($display . ' ' . $judul . ' ' . $waktu . ' ' . $skor);
       echo '<tr data-search="' . h($search) . '" class="table-row-link" data-href="' . h($review_link) . '" style="cursor:pointer;">';
       echo   '<td>';
-      echo     '<div class="d-flex align-items-center">';
-      echo       '<img src="' . h($avatar) . '" class="rounded-circle me-2" width="24" height="24" alt="">';
-      echo       '<span class="text-decoration-underline">' . h($display) . '</span>';
-      echo     '</div>';
+      // Jika peserta terkait dengan user terdaftar, jadikan namanya link ke profil
+      if (!empty($r['user_id'])) {
+        echo '<a href="?page=profile&user_id=' . (int)$r['user_id'] . '" class="text-body text-decoration-none d-block">';
+        echo   '<div class="d-flex align-items-center">';
+        echo     '<img src="' . h($avatar) . '" class="rounded-circle me-2" width="24" height="24" alt="">';
+        echo     '<span>' . h($display) . '</span>';
+        echo   '</div>';
+        echo '</a>';
+      } else {
+        echo     '<div class="d-flex align-items-center">';
+        echo       '<img src="' . h($avatar) . '" class="rounded-circle me-2" width="24" height="24" alt="">';
+        echo       '<span>' . h($display) . '</span>';
+        echo     '</div>';
+      }
       echo   '</td>';
       echo   '<td>' . h($judul) . '</td>';
       echo   '<td>' . h($waktu) . '</td>';
@@ -7871,7 +7882,8 @@ function view_admin()
   echo '<script>
     document.addEventListener("click", function(e){
       const tr = e.target.closest("#tbl-participants tbody tr.table-row-link");
-      if (tr && tr.dataset.href) { window.location.href = tr.dataset.href; }
+      // Jangan override klik pada tautan agar klik nama menuju profil tetap berfungsi
+      if (tr && tr.dataset.href && !e.target.closest("a")) { window.location.href = tr.dataset.href; }
     });
   </script>';
 

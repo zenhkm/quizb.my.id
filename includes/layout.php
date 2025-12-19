@@ -1040,7 +1040,8 @@ JS;
   // Kembalikan output normal head/body — pastikan tiap view menutup div sendiri
   // Beri body class "backend" untuk halaman admin/kelola agar styling spesifik bisa diterapkan
   $page = $_GET['page'] ?? 'home';
-  $backendPages = ['crud','qmanage','teacher_crud','teacher_qmanage'];
+  $backendPages = ['crud','qmanage','teacher_crud','teacher_qmanage','admin'];
+  // Anggap juga halaman profile sebagai backend jika yang melihat adalah admin
   $isBackend = in_array($page, $backendPages, true) || ($page === 'profile' && is_admin());
   $bodyClass = $isBackend ? ' class="backend"' : '';
   echo '</head><body' . $bodyClass . '>';
