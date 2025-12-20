@@ -262,10 +262,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
 // KIRIM PESAN HANDLER (SEKARANG API)
 // ===============================================
 if (isset($_GET['action']) && $_GET['action'] === 'send_message' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-  header('Content-Type: application/json; charset=UTF-8');
+  $is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
   if (!uid()) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'Login diperlukan.']);
+    if ($is_ajax) { http_response_code(403); echo json_encode(['ok' => false, 'error' => 'Login diperlukan.']); } else { http_response_code(403); echo 'Login diperlukan.'; }
     exit;
   }
 
@@ -273,8 +272,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'send_message' && $_SERVER['RE
   $message_text = trim($_POST['message_text'] ?? '');
 
   if ($receiver_id <= 0 || empty($message_text)) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'Pesan atau penerima tidak valid.']);
+    if ($is_ajax) { http_response_code(400); echo json_encode(['ok' => false, 'error' => 'Pesan atau penerima tidak valid.']); } else { http_response_code(400); echo 'Pesan atau penerima tidak valid.'; }
     exit;
   }
 
@@ -296,7 +294,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'send_message' && $_SERVER['RE
     $my_avatar
   );
 
-  echo json_encode(['ok' => true, 'html' => $message_html, 'last_id' => (int)$new_message_id]);
+  if ($is_ajax) {
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode(['ok' => true, 'html' => $message_html, 'last_id' => (int)$new_message_id]);
+    exit;
+  }
+
+  // Jika bukan AJAX (mis. form submit normal), redirect kembali ke percakapan agar user tidak melihat JSON mentah
+  header('Location: ?page=pesan&with_id=' . $receiver_id);
   exit;
 }
 
@@ -7059,6 +7064,7 @@ HTML;
                     // const formData = new FormData(chatForm); // <-- Baris ini dipindah ke atas
                     const response = await fetch('?action=send_message', {
                         method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                         body: formData
                     });
 // ... (dst)
