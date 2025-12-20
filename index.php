@@ -7192,35 +7192,50 @@ HTML;
                 handleFormSubmit(); // Panggil fungsi AJAX
             });
 
-            // 6. Drag & Drop: support
-            const dropzone = document.getElementById('chat-dropzone');
+            // 6. Drag & Drop: support across the whole chat area
+            const dropzoneEl = document.getElementById('chat-dropzone');
+            const messagesEl = document.getElementById('message-container');
             const attachmentPreview = document.getElementById('attachment-preview');
             const attachmentInput = document.getElementById('attachmentInput');
             window._droppedChatFiles = null;
-            if (dropzone) {
-              ['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); }));
-              ['dragleave','dragend','drop'].forEach(ev => dropzone.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); if (ev !== 'dragover') dropzone.classList.remove('dragover'); }));
-              dropzone.addEventListener('drop', function(e){
-                const dt = e.dataTransfer;
-                if (!dt || !dt.files || dt.files.length === 0) return;
-                window._droppedChatFiles = dt.files;
-                // Try to populate the file input for usability (may not work in all browsers)
-                try { if (attachmentInput) attachmentInput.files = dt.files; } catch(_) {}
-                // update preview
-                const first = dt.files[0];
+
+            const _onDragEnter = function(e){ e.preventDefault(); e.stopPropagation(); this.classList.add('dragover'); };
+            const _onDragLeave = function(e){ e.preventDefault(); e.stopPropagation(); this.classList.remove('dragover'); };
+            const _onDrop = function(e){
+              e.preventDefault(); e.stopPropagation(); this.classList.remove('dragover');
+              const dt = e.dataTransfer || e.target && e.target.dataTransfer;
+              if (!dt || !dt.files || dt.files.length === 0) return;
+              window._droppedChatFiles = dt.files;
+              // Try to populate the file input for usability (may not work in all browsers)
+              try { if (attachmentInput) attachmentInput.files = dt.files; } catch(_) {}
+              // update preview
+              const first = dt.files[0];
+              if (attachmentPreview) {
                 attachmentPreview.style.display = 'block';
                 attachmentPreview.innerHTML = '<span>' + first.name + '</span><span class="remove-attach" title="Hapus">&times;</span>';
                 const removeBtn = attachmentPreview.querySelector('.remove-attach');
-                removeBtn.addEventListener('click', function(){
+                if (removeBtn) removeBtn.addEventListener('click', function(){
                   window._droppedChatFiles = null;
                   if (attachmentInput) try { attachmentInput.value = ''; } catch(_) {}
                   attachmentPreview.style.display = 'none';
                   attachmentPreview.innerHTML = '';
                 });
-              });
-              // clicking dropzone focuses textarea
-              dropzone.addEventListener('click', function(){ chatTextarea.focus(); });
-            }
+              }
+            };
+
+            const attachListeners = (el) => {
+              if (!el) return;
+              el.addEventListener('dragenter', _onDragEnter);
+              el.addEventListener('dragover', _onDragEnter);
+              el.addEventListener('dragleave', _onDragLeave);
+              el.addEventListener('dragend', _onDragLeave);
+              el.addEventListener('drop', _onDrop);
+              el.addEventListener('click', function(){ chatTextarea.focus(); });
+            };
+
+            // Attach to both the small dropzone and the messages container so "whole area" accepts files
+            attachListeners(dropzoneEl);
+            attachListeners(messagesEl);
 
             // 3. Listener untuk auto-resize
             chatTextarea.style.height = (chatTextarea.scrollHeight) + 'px';
