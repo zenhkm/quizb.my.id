@@ -226,6 +226,7 @@ CREATE TABLE `messages` (
   `sender_id` int(11) NOT NULL,
   `receiver_id` int(11) NOT NULL,
   `message_text` text NOT NULL,
+  `attachment` varchar(255) DEFAULT NULL,
   `is_read` tinyint(1) NOT NULL DEFAULT 0,
   `deleted_by_sender` tinyint(1) NOT NULL DEFAULT 0,
   `deleted_by_receiver` tinyint(1) NOT NULL DEFAULT 0,

@@ -274,17 +274,77 @@ if (isset($_GET['action']) && $_GET['action'] === 'send_message' && $_SERVER['RE
   $receiver_id = (int)($_POST['receiver_id'] ?? 0);
   $message_text = trim($_POST['message_text'] ?? '');
 
-  if ($receiver_id <= 0 || empty($message_text)) {
+  // Perbolehkan pesan tanpa teks jika ada lampiran file
+  $has_file = !empty($_FILES['attachment']) && $_FILES['attachment']['error'] !== UPLOAD_ERR_NO_FILE;
+  if ($receiver_id <= 0 || (empty($message_text) && !$has_file)) {
     if ($is_ajax) { http_response_code(400); echo json_encode(['ok' => false, 'error' => 'Pesan atau penerima tidak valid.']); } else { http_response_code(400); echo 'Pesan atau penerima tidak valid.'; }
     exit;
   }
 
+  $attachment_path = null;
+  if ($has_file) {
+    $file = $_FILES['attachment'];
+    if ($file['error'] === UPLOAD_ERR_OK) {
+      $maxSize = 10 * 1024 * 1024; // 10MB
+      if ($file['size'] > $maxSize) {
+        if ($is_ajax) { http_response_code(413); echo json_encode(['ok' => false, 'error' => 'File terlalu besar (maks 10MB).']); } else { http_response_code(413); echo 'File terlalu besar.'; }
+        exit;
+      }
+
+      $allowed = [
+        'image/jpeg','image/png','image/gif','application/pdf',
+        'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/zip','text/plain','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ];
+      $finfo = finfo_open(FILEINFO_MIME_TYPE);
+      $mime = finfo_file($finfo, $file['tmp_name']);
+      finfo_close($finfo);
+      if (!in_array($mime, $allowed)) {
+        if ($is_ajax) { http_response_code(415); echo json_encode(['ok' => false, 'error' => 'Tipe file tidak diperbolehkan.']); } else { http_response_code(415); echo 'Tipe file tidak diperbolehkan.'; }
+        exit;
+      }
+
+      $uploadsDir = __DIR__ . '/uploads/messages';
+      if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0755, true);
+      $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+      $safeName = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', pathinfo($file['name'], PATHINFO_FILENAME));
+      $newName = time() . '_' . bin2hex(random_bytes(6)) . ($ext ? '.' . $ext : '');
+      $dest = $uploadsDir . '/' . $newName;
+      if (!move_uploaded_file($file['tmp_name'], $dest)) {
+        if ($is_ajax) { http_response_code(500); echo json_encode(['ok' => false, 'error' => 'Gagal menyimpan file.']); } else { http_response_code(500); echo 'Gagal menyimpan file.'; }
+        exit;
+      }
+      // Simpan path relatif untuk ditampilkan
+      $attachment_path = 'uploads/messages/' . $newName;
+    } else {
+      if ($is_ajax) { http_response_code(400); echo json_encode(['ok' => false, 'error' => 'Kesalahan upload file.']); } else { http_response_code(400); echo 'Kesalahan upload file.'; }
+      exit;
+    }
+  }
+
   // 1. Simpan ke DB
   $created_at = now();
-  q(
-    "INSERT INTO messages (sender_id, receiver_id, message_text, created_at) VALUES (?, ?, ?, ?)",
-    [uid(), $receiver_id, $message_text, $created_at]
-  );
+  if ($attachment_path) {
+    try {
+      q(
+        "INSERT INTO messages (sender_id, receiver_id, message_text, attachment, created_at) VALUES (?, ?, ?, ?, ?)",
+        [uid(), $receiver_id, $message_text, $attachment_path, $created_at]
+      );
+    } catch (Exception $e) {
+      // Jika kolom attachment belum ada di DB, fallback ke insert tanpa attachment
+      q(
+        "INSERT INTO messages (sender_id, receiver_id, message_text, created_at) VALUES (?, ?, ?, ?)",
+        [uid(), $receiver_id, $message_text, $created_at]
+      );
+      // Hapus attachment_path karena tidak tersimpan di DB
+      $attachment_path = null;
+    }
+  } else {
+    q(
+      "INSERT INTO messages (sender_id, receiver_id, message_text, created_at) VALUES (?, ?, ?, ?)",
+      [uid(), $receiver_id, $message_text, $created_at]
+    );
+  }
   $new_message_id = pdo()->lastInsertId();
 
   // 2. Buat HTML untuk pesan baru (pesan *saya*)
@@ -294,7 +354,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'send_message' && $_SERVER['RE
     $message_text,
     $created_at,
     true, // is_my_message
-    $my_avatar
+    $my_avatar,
+    $attachment_path
   );
 
   if ($is_ajax) {
@@ -332,7 +393,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_new_messages' && $_SERVER
   foreach ($rows as $msg) {
     $is_my_message = $msg['sender_id'] == $current;
     $avatar_src = $is_my_message ? ($_SESSION['user']['avatar'] ?? '') : q('SELECT avatar FROM users WHERE id=?', [$other])->fetchColumn();
-    $html .= render_message_bubble($msg['id'], $msg['message_text'], $msg['created_at'], $is_my_message, $avatar_src);
+    $html .= render_message_bubble($msg['id'], $msg['message_text'], $msg['created_at'], $is_my_message, $avatar_src, isset($msg['attachment']) ? $msg['attachment'] : null);
     if ($msg['id'] > $max_id) $max_id = $msg['id'];
   }
 
@@ -6508,7 +6569,7 @@ function api_search_users()
 /**
  * Helper untuk mencetak HTML gelembung pesan
  */
-function render_message_bubble($msg_id, $msg_text, $msg_time_str, $is_my_message, $avatar_src)
+function render_message_bubble($msg_id, $msg_text, $msg_time_str, $is_my_message, $avatar_src, $attachment = null)
 {
   $bubble_class = $is_my_message ? 'bg-primary-subtle text-emphasis' : 'bg-body-secondary';
   $flex_direction = $is_my_message ? 'flex-row-reverse' : 'flex-row';
@@ -6523,6 +6584,14 @@ function render_message_bubble($msg_id, $msg_text, $msg_time_str, $is_my_message
     <img src="<?php echo h($avatar_src); ?>" class="avatar" style="width: 32px; height: 32px; object-fit: cover; margin-top: 5px;">
     <div class="p-2 rounded <?php echo $bubble_class; ?> <?php echo $margin_class; ?>" style="max-width: 70%;">
       <?php echo htmlspecialchars($msg_text); ?>
+      <?php if (!empty($attachment)): ?>
+        <div class="mt-2">
+          <a href="<?php echo h($attachment); ?>" target="_blank" class="d-inline-flex align-items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-paperclip me-2" viewBox="0 0 16 16"><path d="M4.5 3.5a3.5 3.5 0 1 1 4.95 4.95L5.5 12.4a2.5 2.5 0 1 1-3.536-3.536l4.243-4.243a1.5 1.5 0 1 1 2.121 2.121L4.5 12.121"/></svg>
+            <span><?php echo basename($attachment); ?></span>
+          </a>
+        </div>
+      <?php endif; ?>
       <div class="text-muted" style="font-size: 0.75rem; text-align: right;"><?php echo $time_formatted; ?></div>
     </div>
     <div class="dropdown align-self-center <?php echo $is_my_message ? 'me-1' : 'ms-1'; ?>">
@@ -6664,7 +6733,8 @@ HTML;
           $msg['message_text'],
           $msg['created_at'],
           $is_my_message,
-          $avatar_src
+          $avatar_src,
+          isset($msg['attachment']) ? $msg['attachment'] : null
         );
       }
     }
@@ -6674,13 +6744,17 @@ HTML;
     echo '</div>'; // Akhir message-container
 
     // Form Kirim Pesan
-    echo '<form method="post" action="?action=send_message" class="mt-auto" id="chat-form">';
+    echo '<form method="post" action="?action=send_message" enctype="multipart/form-data" class="mt-auto" id="chat-form">';
     echo   '<input type="hidden" name="receiver_id" value="' . $other_user_id . '">';
-    echo   '<div class="d-flex align-items-end gap-2">';
-    echo     '<textarea name="message_text" class="form-control" rows="1" placeholder="Ketik pesan Anda..." required style="resize: none; overflow-y: hidden;"></textarea>';
-    echo     '<button type="submit" class="btn btn-primary" style="flex-shrink: 0;" title="Kirim">';
+    echo   '<div class="d-flex align-items-end gap-2" style="gap: .5rem;">';
+    echo     '<textarea name="message_text" class="form-control" rows="1" placeholder="Ketik pesan Anda..." style="resize: none; overflow-y: hidden;"></textarea>';
+    echo     '<div class="d-flex align-items-center" style="gap: .5rem;">';
+    echo       '<input type="file" name="attachment" accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="form-control form-control-sm">';
+    echo       '<button type="submit" class="btn btn-primary" style="flex-shrink: 0;" title="Kirim">';
     echo       '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16" style="display: block; margin: auto;"><path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/></svg>';
     echo     '</button>';
+    echo       '</button>';
+    echo     '</div>'; // akhir div input+button
     echo   '</div>';
     echo '</form>';
 
@@ -7052,8 +7126,10 @@ HTML;
 
           // 1. Fungsi untuk mengirim (dipanggil oleh submit & Enter)
             const handleFormSubmit = async () => {
-                const messageText = chatTextarea.value.trim();
-                if (messageText === '') return;
+              const messageText = chatTextarea.value.trim();
+              const fileInput = chatForm.querySelector('input[name="attachment"]');
+              const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+              if (messageText === '' && !hasFile) return;
 
                 // ▼▼▼ PERBAIKAN: Ambil data SEBELUM form dinonaktifkan ▼▼▼
                 const formData = new FormData(chatForm);
