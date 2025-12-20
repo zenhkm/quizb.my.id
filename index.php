@@ -6675,6 +6675,38 @@ HTML;
     echo     '</button>';
     echo   '</div>';
     echo '</form>';
+
+    // Polling: ambil pesan baru tanpa reload
+    echo <<<JS2
+    <script>
+    (function(){
+      var lastMessageId = {$last_message_id};
+      var otherUserId = {$other_user_id};
+      var pollInterval = 2500;
+      var pollTimer = null;
+
+      async function pollNewMessages(){
+        try{
+          const res = await fetch('?action=get_new_messages&with_id=' + otherUserId + '&last_id=' + lastMessageId, {cache: 'no-store'});
+          const j = await res.json();
+          if (res.ok && j.ok && j.html){
+            var container = document.getElementById('message-container');
+            if (container){
+              var empty = document.getElementById('empty-chat-placeholder'); if (empty) empty.style.display = 'none';
+              container.insertAdjacentHTML('beforeend', j.html);
+              container.scrollTop = container.scrollHeight;
+              if (j.last_id) lastMessageId = j.last_id;
+            }
+          }
+        }catch(e){/* ignore network errors */}
+      }
+
+      pollTimer = setInterval(pollNewMessages, pollInterval);
+      pollNewMessages();
+      window.addEventListener('beforeunload', function(){ if (pollTimer) clearInterval(pollTimer); });
+    })();
+    </script>
+JS2;
   } else {
     // ==========================================================
     // TAMPILAN KOTAK MASUK (INBOX) - BLOK INI YANG DIPERBAIKI
@@ -7098,11 +7130,7 @@ HTML;
                 messageContainer.scrollTop = messageContainer.scrollHeight;
             }
 
-            // ===== Polling: ambil pesan baru secara periodik tanpa reload =====
-            // Inisialisasi lastMessageId dari server (jika ada pesan awal)
-            var lastMessageId = 
-    </script>
-JS;
+
 }
 // ================
 // AKHIR VIEW PESAN
