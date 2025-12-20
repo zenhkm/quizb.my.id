@@ -296,7 +296,42 @@ if (isset($_GET['action']) && $_GET['action'] === 'send_message' && $_SERVER['RE
     $my_avatar
   );
 
-  echo json_encode(['ok' => true, 'html' => $message_html]);
+  echo json_encode(['ok' => true, 'html' => $message_html, 'last_id' => (int)$new_message_id]);
+  exit;
+}
+
+// API: Ambil pesan baru (untuk polling, mengembalikan HTML pesan baru)
+if (isset($_GET['action']) && $_GET['action'] === 'get_new_messages' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+  header('Content-Type: application/json; charset=UTF-8');
+  if (!uid()) { http_response_code(403); echo json_encode(['ok' => false, 'error' => 'Login diperlukan.']); exit; }
+  $other = (int)($_GET['with_id'] ?? 0);
+  $last_id = (int)($_GET['last_id'] ?? 0);
+  if ($other <= 0) { http_response_code(400); echo json_encode(['ok' => false, 'error' => 'Parameter with_id tidak valid.']); exit; }
+
+  $current = uid();
+
+  $rows = q(
+    "SELECT * FROM messages WHERE ((sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)) AND id > ? ORDER BY id ASC",
+    [$current, $other, $other, $current, $last_id]
+  )->fetchAll();
+
+  if (!$rows) {
+    echo json_encode(['ok' => true, 'html' => '', 'last_id' => $last_id]); exit;
+  }
+
+  $html = '';
+  $max_id = $last_id;
+  foreach ($rows as $msg) {
+    $is_my_message = $msg['sender_id'] == $current;
+    $avatar_src = $is_my_message ? ($_SESSION['user']['avatar'] ?? '') : q('SELECT avatar FROM users WHERE id=?', [$other])->fetchColumn();
+    $html .= render_message_bubble($msg['id'], $msg['message_text'], $msg['created_at'], $is_my_message, $avatar_src);
+    if ($msg['id'] > $max_id) $max_id = $msg['id'];
+  }
+
+  // Tandai pesan dari lawan bicara sebagai sudah dibaca
+  q("UPDATE messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ? AND id > ?", [$other, $current, $last_id]);
+
+  echo json_encode(['ok' => true, 'html' => $html, 'last_id' => $max_id]);
   exit;
 }
 
@@ -6597,6 +6632,12 @@ HTML;
       [$current_user_id, $other_user_id, $other_user_id, $current_user_id, $current_user_id, $current_user_id]
     )->fetchAll();
 
+    // Hitung id pesan terakhir yang sudah ditampilkan
+    $last_message_id = 0;
+    if ($messages && count($messages) > 0) {
+      $last_message_id = (int)$messages[count($messages)-1]['id'];
+    }
+
     // Container pesan
     echo '<div class="mb-3" style="height: 50vh; overflow-y: auto; padding: 10px;" id="message-container">';
 
@@ -7011,6 +7052,8 @@ HTML;
                     if (response.ok && result.ok) {
                         if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
                         messageContainer.insertAdjacentHTML('beforeend', result.html);
+                        // Update lastMessageId dari server agar polling tidak menduplikat pesan
+                        if (result.last_id) lastMessageId = result.last_id;
                         messageContainer.scrollTop = messageContainer.scrollHeight;
                         chatTextarea.value = '';
                         chatTextarea.style.height = 'auto'; // Reset tinggi
@@ -7054,10 +7097,10 @@ HTML;
             if (messageContainer) {
                 messageContainer.scrollTop = messageContainer.scrollHeight;
             }
-        }
-        // --- AKHIR BLOK CHAT ROOM ---
 
-    }, 0); // Penutup setTimeout
+            // ===== Polling: ambil pesan baru secara periodik tanpa reload =====
+            // Inisialisasi lastMessageId dari server (jika ada pesan awal)
+            var lastMessageId = 
     </script>
 JS;
 }
