@@ -6747,9 +6747,12 @@ HTML;
     echo '<form method="post" action="?action=send_message" enctype="multipart/form-data" class="mt-auto" id="chat-form">';
     echo   '<input type="hidden" name="receiver_id" value="' . $other_user_id . '">';
     echo   '<div class="d-flex align-items-end gap-2" style="gap: .5rem;">';
-    echo     '<textarea name="message_text" class="form-control" rows="1" placeholder="Ketik pesan Anda..." style="resize: none; overflow-y: hidden;"></textarea>';
+    echo     '<div id="chat-dropzone" class="flex-grow-1 p-2 rounded" style="border:1px dashed transparent;">';
+    echo       '<textarea name="message_text" class="form-control" rows="1" placeholder="Ketik pesan Anda..." style="resize: none; overflow-y: hidden;"></textarea>';
+    echo       '<div id="attachment-preview" class="mt-2 small text-muted" style="display:none;"></div>';
+    echo     '</div>';
     echo     '<div class="d-flex align-items-center" style="gap: .5rem;">';
-    echo       '<input type="file" name="attachment" accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="form-control form-control-sm">';
+    echo       '<input type="file" name="attachment" id="attachmentInput" accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="form-control form-control-sm">';
     echo       '<button type="submit" class="btn btn-primary" style="flex-shrink: 0;" title="Kirim">';
     echo       '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16" style="display: block; margin: auto;"><path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/></svg>';
     echo     '</button>';
@@ -6757,6 +6760,13 @@ HTML;
     echo     '</div>'; // akhir div input+button
     echo   '</div>';
     echo '</form>';
+
+    // Small CSS for dropzone
+    echo '<style>
+      #chat-dropzone { transition: background-color .12s, border-color .12s; }
+      #chat-dropzone.dragover { background-color: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.15); }
+      #attachment-preview .remove-attach { cursor: pointer; margin-left: .5rem; color: #dc3545; }
+    </style>';
 
     // Polling: ambil pesan baru tanpa reload
     echo '<script>(function(){'
@@ -7129,10 +7139,15 @@ HTML;
               const messageText = chatTextarea.value.trim();
               const fileInput = chatForm.querySelector('input[name="attachment"]');
               const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
-              if (messageText === '' && !hasFile) return;
+              // also allow files dropped via drag-and-drop
+              if (messageText === '' && !hasFile && !(window._droppedChatFiles && window._droppedChatFiles.length)) return;
 
                 // ▼▼▼ PERBAIKAN: Ambil data SEBELUM form dinonaktifkan ▼▼▼
                 const formData = new FormData(chatForm);
+                // Jika ada file yang dijatuhkan lewat drag&drop, pastikan ditambahkan ke FormData
+                if (window._droppedChatFiles && window._droppedChatFiles.length && (!fileInput || !fileInput.files || fileInput.files.length === 0)) {
+                  formData.append('attachment', window._droppedChatFiles[0], window._droppedChatFiles[0].name);
+                }
                 // Tandai request ini sebagai AJAX agar server hanya mengembalikan JSON
                 formData.append('ajax', '1');
                 
@@ -7176,6 +7191,36 @@ HTML;
                 e.preventDefault(); // Hentikan reload
                 handleFormSubmit(); // Panggil fungsi AJAX
             });
+
+            // 6. Drag & Drop: support
+            const dropzone = document.getElementById('chat-dropzone');
+            const attachmentPreview = document.getElementById('attachment-preview');
+            const attachmentInput = document.getElementById('attachmentInput');
+            window._droppedChatFiles = null;
+            if (dropzone) {
+              ['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); }));
+              ['dragleave','dragend','drop'].forEach(ev => dropzone.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); if (ev !== 'dragover') dropzone.classList.remove('dragover'); }));
+              dropzone.addEventListener('drop', function(e){
+                const dt = e.dataTransfer;
+                if (!dt || !dt.files || dt.files.length === 0) return;
+                window._droppedChatFiles = dt.files;
+                // Try to populate the file input for usability (may not work in all browsers)
+                try { if (attachmentInput) attachmentInput.files = dt.files; } catch(_) {}
+                // update preview
+                const first = dt.files[0];
+                attachmentPreview.style.display = 'block';
+                attachmentPreview.innerHTML = '<span>' + first.name + '</span><span class="remove-attach" title="Hapus">&times;</span>';
+                const removeBtn = attachmentPreview.querySelector('.remove-attach');
+                removeBtn.addEventListener('click', function(){
+                  window._droppedChatFiles = null;
+                  if (attachmentInput) try { attachmentInput.value = ''; } catch(_) {}
+                  attachmentPreview.style.display = 'none';
+                  attachmentPreview.innerHTML = '';
+                });
+              });
+              // clicking dropzone focuses textarea
+              dropzone.addEventListener('click', function(){ chatTextarea.focus(); });
+            }
 
             // 3. Listener untuk auto-resize
             chatTextarea.style.height = (chatTextarea.scrollHeight) + 'px';
