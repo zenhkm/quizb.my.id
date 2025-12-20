@@ -262,7 +262,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
 // KIRIM PESAN HANDLER (SEKARANG API)
 // ===============================================
 if (isset($_GET['action']) && $_GET['action'] === 'send_message' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-  $is_ajax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+  // Hanya anggap AJAX jika header X-Requested-With ada DAN client juga menyertakan flag POST 'ajax=1'.
+  $is_ajax_header = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+  $is_ajax_post = isset($_POST['ajax']) && $_POST['ajax'] == '1';
+  $is_ajax = $is_ajax_header && $is_ajax_post;
   if (!uid()) {
     if ($is_ajax) { http_response_code(403); echo json_encode(['ok' => false, 'error' => 'Login diperlukan.']); } else { http_response_code(403); echo 'Login diperlukan.'; }
     exit;
@@ -7054,6 +7057,8 @@ HTML;
 
                 // ▼▼▼ PERBAIKAN: Ambil data SEBELUM form dinonaktifkan ▼▼▼
                 const formData = new FormData(chatForm);
+                // Tandai request ini sebagai AJAX agar server hanya mengembalikan JSON
+                formData.append('ajax', '1');
                 
                 // Baru nonaktifkan form
                 chatTextarea.disabled = true;
