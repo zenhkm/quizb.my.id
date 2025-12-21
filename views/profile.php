@@ -165,15 +165,16 @@ if ($is_own_profile && is_admin()) {
     }
     echo '</tr></thead><tbody>';
 
-   foreach ($rows as $r) {
+     foreach ($rows as $r) {
       $review_url = '?page=review&result_id=' . (int)$r['result_id'];
-      
-      // Tautkan seluruh baris ke halaman review, tetapi hanya jika Admin yang melihat.
-      // Jika bukan admin, biarkan barisnya biasa, kecuali untuk kolom Aksi.
-      if (is_admin()) {
-          echo '<tr onclick="window.location.href=\'' . $review_url . '\'" style="cursor:pointer;">';
+
+      // Selain admin: pemilik profil juga boleh klik baris untuk menuju review.
+      // Supaya tombol di kolom Aksi tetap berfungsi, klik pada elemen interaktif tidak memicu redirect.
+      $row_clickable = ($is_own_profile || is_admin());
+      if ($row_clickable) {
+        echo '<tr onclick="if(event.target.closest(\'a,button,input,select,textarea,label,form\')) return; window.location.href=\'' . $review_url . '\'" style="cursor:pointer;">';
       } else {
-          echo '<tr>';
+        echo '<tr>';
       }
 
       echo '<td>' . h($r['created_at']) . '</td><td>' . h($r['title']) . '</td>';
@@ -184,11 +185,7 @@ if ($is_own_profile && is_admin()) {
 
       if ($is_own_profile) {
         echo '<td>';
-        
-        // Tampilkan tombol Review HANYA jika Admin
-        if (is_admin()) {
-            echo '<a href="' . $review_url . '" class="btn btn-sm btn-info w-100 mb-1">Review</a>';
-        }
+        echo '<a href="' . $review_url . '" class="btn btn-sm btn-info w-100 mb-1">Review</a>';
         
         if ((int)$r['score'] === 100) {
           // ... (Tombol Laporan dan Story WA)
