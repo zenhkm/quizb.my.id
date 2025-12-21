@@ -1913,7 +1913,7 @@ function handle_download_csv()
 
 /**
  * Menangani permintaan rekap nilai untuk sebuah kelas.
- * Output: CSV yang di-download berisi skor tiap siswa per tugas.
+ * Output: Excel (XLSX) yang di-download berisi skor tiap siswa per tugas.
  */
 function handle_rekap_nilai()
 {
@@ -1941,6 +1941,23 @@ function handle_rekap_nilai()
     }
   }
 
+  // PhpSpreadsheet via Composer
+  if (!class_exists('PhpOffice\\PhpSpreadsheet\\Spreadsheet')) {
+    $autoload = __DIR__ . '/vendor/autoload.php';
+    if (is_file($autoload)) {
+      require_once $autoload;
+    }
+  }
+  if (!class_exists('PhpOffice\\PhpSpreadsheet\\Spreadsheet')) {
+    http_response_code(500);
+    echo 'Library PhpSpreadsheet tidak ditemukan. Jalankan composer update.';
+    exit;
+  }
+
+  // Ambil info kelas untuk nama file
+  $kelas_info = q("SELECT nama_kelas FROM classes WHERE id = ? LIMIT 1", [$id_kelas])->fetch();
+  $nama_kelas = (string)($kelas_info['nama_kelas'] ?? ('kelas_' . $id_kelas));
+
   // Ambil daftar tugas untuk kelas
   $assignments = q("SELECT id, judul_tugas FROM assignments WHERE id_kelas = ? ORDER BY created_at", [$id_kelas])->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1965,35 +1982,113 @@ function handle_rekap_nilai()
     }
   }
 
-  // Stream CSV
-  header('Content-Type: text/csv; charset=UTF-8');
-  header('Content-Disposition: attachment; filename="rekap_nilai_kelas_' . $id_kelas . '.csv"');
-  $out = fopen('php://output', 'w');
-  // Tulis BOM untuk kompatibilitas Excel
-  fwrite($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+  // Bersihkan output buffer agar header aman
+  while (ob_get_level() > 0) {
+    @ob_end_clean();
+  }
 
-  // Header CSV
-  $header = ['No', 'User ID', 'Nama', 'Email'];
-  foreach ($assignments as $a) $header[] = $a['judul_tugas'];
-  $header[] = 'Rata-rata';
-  fputcsv($out, $header);
+  $safe = function ($s) {
+    $s = preg_replace('/[^A-Za-z0-9 _\-]/', '', (string)$s);
+    $s = trim(preg_replace('/\s+/', ' ', $s));
+    return $s === '' ? 'rekap' : $s;
+  };
 
+  $filename = 'Rekap_Nilai_Kelas_' . $id_kelas . '_' . $safe($nama_kelas) . '_' . date('Y-m-d_His') . '.xlsx';
+  if (strlen($filename) > 180) {
+    $filename = 'Rekap_Nilai_Kelas_' . $id_kelas . '_' . date('Y-m-d_His') . '.xlsx';
+  }
+
+  $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+  $sheet = $spreadsheet->getActiveSheet();
+  $sheet->setTitle('Rekap');
+
+  // Header
+  $headers = ['No', 'User ID', 'Nama', 'Email'];
+  foreach ($assignments as $a) {
+    $headers[] = (string)$a['judul_tugas'];
+  }
+  $headers[] = 'Rata-rata';
+
+  $colIndex = 1;
+  foreach ($headers as $h) {
+    $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
+    $sheet->setCellValue($colLetter . '1', $h);
+    $colIndex++;
+  }
+
+  // Styling header
+  $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers));
+  $sheet->getStyle('A1:' . $lastCol . '1')->applyFromArray([
+    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+    'fill' => [
+      'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+      'startColor' => ['rgb' => '0F172A'],
+    ],
+    'alignment' => [
+      'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+      'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+    ],
+  ]);
+  $sheet->freezePane('A2');
+
+  // Data
+  $rowNum = 2;
   $no = 1;
   foreach ($students as $s) {
-    $line = [$no, $s['id'], $s['name'], $s['email']];
-    $sum = 0; $count = 0;
+    $sheet->setCellValue('A' . $rowNum, $no);
+    $sheet->setCellValue('B' . $rowNum, (int)$s['id']);
+    $sheet->setCellValue('C' . $rowNum, (string)$s['name']);
+    $sheet->setCellValue('D' . $rowNum, (string)$s['email']);
+
+    $sum = 0;
+    $count = 0;
+    $baseColIndex = 5; // Kolom E
+    $cIndex = 0;
     foreach ($assignments as $a) {
-      $sc = $scores[$s['id']][$a['id']] ?? '';
-      if ($sc !== '') { $sum += (float)$sc; $count++; }
-      $line[] = $sc;
+      $score = $scores[$s['id']][$a['id']] ?? null;
+      $cellCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColIndex + $cIndex);
+      if ($score === null || $score === '') {
+        $sheet->setCellValue($cellCol . $rowNum, '');
+      } else {
+        $sheet->setCellValue($cellCol . $rowNum, (float)$score);
+        $sum += (float)$score;
+        $count++;
+      }
+      $cIndex++;
     }
+
     $avg = $count ? round($sum / $count, 2) : '';
-    $line[] = $avg;
-    fputcsv($out, $line);
+    $avgCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColIndex + count($assignments));
+    $sheet->setCellValue($avgCol . $rowNum, $avg);
+
+    $rowNum++;
     $no++;
   }
 
-  fclose($out);
+  // Border untuk area terpakai
+  $lastRow = max(1, $rowNum - 1);
+  $sheet->getStyle('A1:' . $lastCol . $lastRow)->applyFromArray([
+    'borders' => [
+      'allBorders' => [
+        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+        'color' => ['rgb' => 'D1D5DB'],
+      ],
+    ],
+  ]);
+
+  // Auto size kolom (secukupnya)
+  for ($i = 1; $i <= count($headers); $i++) {
+    $c = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+    $sheet->getColumnDimension($c)->setAutoSize(true);
+  }
+
+  header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  header('Content-Disposition: attachment;filename="' . $filename . '"');
+  header('Cache-Control: max-age=0');
+  header('Pragma: public');
+
+  $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+  $writer->save('php://output');
   exit;
 }
 
@@ -3687,7 +3782,7 @@ function view_detail_kelas()
   echo '<div class="pt-3">';
   echo '  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">';
   echo '    <h5 class="mb-0">Daftar Tugas</h5>';
-  echo '    <a href="?action=rekap_nilai&id_kelas=' . $id_kelas . '" class="btn btn-sm btn-success">Rekap Nilai (CSV)</a>';
+  echo '    <a href="?action=rekap_nilai&id_kelas=' . $id_kelas . '" class="btn btn-sm btn-success">Rekap Nilai (Excel)</a>';
   echo '  </div>';
 
   if ($assignments) {
