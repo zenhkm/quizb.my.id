@@ -37,7 +37,7 @@ if ($is_own_profile && is_admin()) {
           LEFT JOIN quiz_titles qt ON qt.id = r.title_id
           WHERE r.score = 100
           ORDER BY r.created_at DESC
-          LIMIT 20000")->fetchAll();
+          LIMIT 500")->fetchAll();
 } else {
     $rows = q("
             SELECT 
