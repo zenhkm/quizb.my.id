@@ -4,20 +4,6 @@
 // Siapkan CSS khusus untuk panel navigasi soal & header exam
 echo <<<'CSS'
 <style>
-    /* Center the quiz content on wide screens */
-    .quiz-container {
-        width: 100%;
-        max-width: 960px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    .quiz-question-box {
-        max-width: 960px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-
     #exam-nav-panel .nav-link { 
         border: 1px solid var(--bs-border-color);
         margin: 2px;
@@ -34,17 +20,11 @@ echo <<<'CSS'
         border-color: var(--bs-primary);
     }
     /* Choice chips */
-    .quiz-choices-grid {
-        display: grid;
-        gap: var(--space-3, .75rem);
-        max-width: 760px;
-        margin-left: auto;
-        margin-right: auto;
-    }
+    .quiz-choices-grid { display: grid; gap: var(--space-3, .75rem); }
     .quiz-choice-item {
         display: block;
         width: 100%;
-        text-align: left;
+        text-align: center;
         background: var(--surface-1, #fff);
         color: var(--text-1, inherit);
         border: 1px solid var(--border-1, #dee2e6);
