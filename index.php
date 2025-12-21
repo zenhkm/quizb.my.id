@@ -946,6 +946,19 @@ if (($page ?? ($_GET['page'] ?? 'home')) === 'notifikasi' && uid()) {
 
 
 // ▲▲▲ AKHIR BLOK PERBAIKAN CACHING ▲▲▲
+
+// ===============================================
+// HANDLE DOWNLOAD TEMPLATE SEBELUM HTML OUTPUT
+// ===============================================
+$page = $_GET['page'] ?? 'home';
+$action = $_GET['action'] ?? '';
+
+if ($page === 'import_questions' && $action === 'download_template') {
+    // Langsung require file action, yang sudah handle download
+    require 'actions/import_questions.php';
+    exit; // Stop eksekusi, tidak perlu html_head
+}
+
 // ===============================================
 // VIEW: HEAD
 // ===============================================

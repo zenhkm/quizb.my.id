@@ -2,15 +2,14 @@
 // actions/import_questions.php
 // Handler untuk Import Soal dari Excel
 
-if (!is_pengajar() && !is_admin()) {
-    echo '<div class="alert alert-danger">Akses admin/pengajar diperlukan.</div>';
-    return;
-}
-
 require_once __DIR__ . '/../vendor/autoload.php';
 
 // Cek apakah PhpSpreadsheet tersedia
 if (!class_exists('PhpOffice\PhpSpreadsheet\Spreadsheet')) {
+    if (!is_pengajar() && !is_admin()) {
+        echo '<div class="alert alert-danger">Akses admin/pengajar diperlukan.</div>';
+        return;
+    }
     echo '<div class="alert alert-danger">';
     echo '<h4>Error: PhpSpreadsheet Library Tidak Ditemukan</h4>';
     echo '<p>Library PhpOffice/PhpSpreadsheet belum terinstall. Silakan jalankan perintah berikut di terminal server:</p>';
@@ -27,9 +26,19 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 $act = $_GET['action'] ?? $_POST['act'] ?? '';
 
 // ============================================================
-// DOWNLOAD TEMPLATE EXCEL
+// DOWNLOAD TEMPLATE EXCEL - HARUS PALING AWAL SEBELUM OUTPUT
 // ============================================================
 if ($act === 'download_template') {
+    // Cek permission tanpa echo
+    if (!is_pengajar() && !is_admin()) {
+        die('Akses ditolak');
+    }
+    
+    // Bersihkan semua output buffer
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
     
@@ -110,10 +119,21 @@ if ($act === 'download_template') {
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment;filename="' . $filename . '"');
     header('Cache-Control: max-age=0');
+    header('Cache-Control: max-age=1');
+    header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+    header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+    header('Cache-Control: cache, must-revalidate');
+    header('Pragma: public');
     
     $writer = new Xlsx($spreadsheet);
     $writer->save('php://output');
     exit;
+}
+
+// Setelah download template, baru cek permission untuk halaman lain
+if (!is_pengajar() && !is_admin()) {
+    echo '<div class="alert alert-danger">Akses admin/pengajar diperlukan.</div>';
+    return;
 }
 
 // ============================================================
