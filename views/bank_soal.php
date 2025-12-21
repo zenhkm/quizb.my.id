@@ -55,6 +55,8 @@ $success = $_GET['success'] ?? '';
 $message = $_GET['msg'] ?? '';
 ?>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
 <style>
 .bank-soal-container {
     display: grid;
@@ -327,17 +329,27 @@ $message = $_GET['msg'] ?? '';
                 <small>Klik + Judul untuk menambah</small>
             </div>
             <?php else: ?>
-                <!-- Tabs untuk judul -->
-                <ul class="nav nav-pills mb-3" role="tablist">
-                    <?php foreach ($titles as $idx => $title): ?>
-                    <li class="nav-item">
-                        <a class="nav-link <?= $title['id'] == $selected_title ? 'active' : '' ?>" 
-                           href="?page=bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $title['id'] ?>">
-                            <?= h($title['title']) ?>
-                        </a>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
+                <!-- List untuk judul dengan tombol edit/delete -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Daftar Judul Soal:</label>
+                    <div class="list-group">
+                        <?php foreach ($titles as $idx => $title): ?>
+                        <div class="list-group-item <?= $title['id'] == $selected_title ? 'active' : '' ?>" 
+                             style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+                             onclick="window.location='?page=bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $title['id'] ?>'">
+                            <span><?= h($title['title']) ?></span>
+                            <div onclick="event.stopPropagation();" style="display: flex; gap: 4px;">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editTitle(<?= $title['id'] ?>, '<?= h($title['title']) ?>', <?= $selected_subtheme ?>)" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteTitle(<?= $title['id'] ?>)" title="Hapus">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
 
                 <?php if ($selected_title): ?>
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -437,21 +449,23 @@ $message = $_GET['msg'] ?? '';
     </div>
 </div>
 
-<!-- Modal Add Title -->
+<!-- Modal Add/Edit Title -->
 <div class="modal fade" id="titleModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST" action="?page=bank_soal">
                 <div class="modal-header">
-                    <h5 class="modal-title">Tambah Judul Soal</h5>
+                    <h5 class="modal-title" id="titleModalTitle">Tambah Judul Soal</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" name="act" value="add_title">
+                    <input type="hidden" name="act" id="title_act" value="add_title">
                     <input type="hidden" name="subtheme_id" id="title_subtheme_id">
+                    <input type="hidden" name="title_id" id="title_id">
+                    <input type="hidden" name="theme_id" id="title_theme_id">
                     <div class="mb-3">
                         <label class="form-label">Judul Soal</label>
-                        <input type="text" name="title" class="form-control" required>
+                        <input type="text" name="title" id="title_name" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -581,8 +595,43 @@ function deleteSubtheme(id) {
 }
 
 function showAddTitleModal(subthemeId) {
+    document.getElementById('title_act').value = 'add_title';
+    document.getElementById('titleModalTitle').textContent = 'Tambah Judul Soal';
     document.getElementById('title_subtheme_id').value = subthemeId;
+    document.getElementById('title_name').value = '';
+    document.getElementById('title_id').value = '';
+    const themeId = new URLSearchParams(window.location.search).get('theme_id');
+    document.getElementById('title_theme_id').value = themeId;
     new bootstrap.Modal(document.getElementById('titleModal')).show();
+}
+
+function editTitle(id, name, subthemeId) {
+    document.getElementById('title_act').value = 'edit_title';
+    document.getElementById('titleModalTitle').textContent = 'Edit Judul Soal';
+    document.getElementById('title_id').value = id;
+    document.getElementById('title_name').value = name;
+    document.getElementById('title_subtheme_id').value = subthemeId;
+    const themeId = new URLSearchParams(window.location.search).get('theme_id');
+    document.getElementById('title_theme_id').value = themeId;
+    new bootstrap.Modal(document.getElementById('titleModal')).show();
+}
+
+function deleteTitle(id) {
+    if (confirm('Yakin hapus judul ini? Semua soal akan ikut terhapus!')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '?page=bank_soal';
+        const themeId = new URLSearchParams(window.location.search).get('theme_id');
+        const subthemeId = new URLSearchParams(window.location.search).get('subtheme_id');
+        form.innerHTML = `
+            <input type="hidden" name="act" value="delete_title">
+            <input type="hidden" name="title_id" value="${id}">
+            <input type="hidden" name="theme_id" value="${themeId}">
+            <input type="hidden" name="subtheme_id" value="${subthemeId}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 function showAddQuestionModal() {

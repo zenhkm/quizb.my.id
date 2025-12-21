@@ -94,6 +94,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('?page=bank_soal');
     }
     
+    if ($act === 'edit_title') {
+        $id = (int)($_POST['title_id'] ?? 0);
+        $title = trim($_POST['title'] ?? '');
+        $theme_id = (int)($_POST['theme_id'] ?? 0);
+        $subtheme_id = (int)($_POST['subtheme_id'] ?? 0);
+        
+        if ($id > 0 && $title !== '') {
+            q("UPDATE quiz_titles SET title=? WHERE id=?", [$title, $id]);
+            redirect('?page=bank_soal&theme_id=' . $theme_id . '&subtheme_id=' . $subtheme_id . '&title_id=' . $id . '&success=1&msg=' . urlencode('Judul berhasil diupdate'));
+        }
+        redirect('?page=bank_soal');
+    }
+    
+    if ($act === 'delete_title') {
+        $id = (int)($_POST['title_id'] ?? 0);
+        $theme_id = (int)($_POST['theme_id'] ?? 0);
+        $subtheme_id = (int)($_POST['subtheme_id'] ?? 0);
+        
+        if ($id > 0) {
+            q("DELETE FROM quiz_titles WHERE id=?", [$id]);
+            redirect('?page=bank_soal&theme_id=' . $theme_id . '&subtheme_id=' . $subtheme_id . '&success=1&msg=' . urlencode('Judul berhasil dihapus'));
+        }
+        redirect('?page=bank_soal');
+    }
+    
     // ========== SOAL ==========
     if ($act === 'add_question') {
         $title_id = (int)($_POST['title_id'] ?? 0);
