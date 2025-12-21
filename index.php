@@ -511,6 +511,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'kirim_rekap') {
 if (isset($_GET['action']) && $_GET['action'] === 'rekap_nilai') {
   handle_rekap_nilai();
 }
+if (isset($_GET['action']) && $_GET['action'] === 'rekap_tugas_excel') {
+  handle_rekap_tugas_excel();
+}
 if (isset($_GET['action']) && $_GET['action'] === 'api_get_quiz') {
   api_get_quiz(); // Panggil fungsi API yang baru kita buat
 }
@@ -1994,6 +1997,180 @@ function handle_rekap_nilai()
   exit;
 }
 
+/**
+ * Download rekap per-tugas dalam format Excel (XLSX).
+ * Kolom utama: Nama, Email, Sekolah, Kelas, Status, Nilai, Waktu Submit, Batas Waktu.
+ */
+function handle_rekap_tugas_excel()
+{
+  // Keamanan: harus login + pengajar/admin
+  if (!uid() || (!is_pengajar() && !is_admin())) {
+    http_response_code(403);
+    echo 'Akses ditolak';
+    exit;
+  }
+
+  $assignment_id = (int)($_GET['assignment_id'] ?? 0);
+  if ($assignment_id <= 0) {
+    http_response_code(400);
+    echo 'assignment_id tidak valid';
+    exit;
+  }
+
+  // Verifikasi tugas & akses
+  $assignment = q(
+    "SELECT a.*, c.nama_kelas FROM assignments a JOIN classes c ON a.id_kelas = c.id WHERE a.id = ? LIMIT 1",
+    [$assignment_id]
+  )->fetch();
+
+  if (!$assignment) {
+    http_response_code(404);
+    echo 'Tugas tidak ditemukan';
+    exit;
+  }
+
+  if (is_pengajar() && !is_admin()) {
+    $current_user_id = (int)uid();
+    if ((int)$assignment['id_pengajar'] !== $current_user_id) {
+      http_response_code(403);
+      echo 'Akses ditolak';
+      exit;
+    }
+  }
+
+  // PhpSpreadsheet via Composer
+  if (!class_exists('PhpOffice\\PhpSpreadsheet\\Spreadsheet')) {
+    $autoload = __DIR__ . '/vendor/autoload.php';
+    if (is_file($autoload)) {
+      require_once $autoload;
+    }
+  }
+  if (!class_exists('PhpOffice\\PhpSpreadsheet\\Spreadsheet')) {
+    http_response_code(500);
+    echo 'Library PhpSpreadsheet tidak ditemukan. Jalankan composer update.';
+    exit;
+  }
+
+  // Ambil data anggota kelas + submission
+  $rows = q(
+    "
+      SELECT
+        u.id AS user_id,
+        u.name AS user_name,
+        u.email,
+        u.nama_sekolah,
+        u.nama_kelas,
+        asub.submitted_at,
+        r.score
+      FROM class_members cm
+      JOIN users u ON cm.id_pelajar = u.id
+      LEFT JOIN assignment_submissions asub
+        ON asub.assignment_id = ? AND asub.user_id = u.id
+      LEFT JOIN results r ON r.id = asub.result_id
+      WHERE cm.id_kelas = ?
+      ORDER BY u.name ASC
+    ",
+    [$assignment_id, (int)$assignment['id_kelas']]
+  )->fetchAll();
+
+  // Bersihkan output buffer agar header aman
+  while (ob_get_level() > 0) {
+    @ob_end_clean();
+  }
+
+  $judul_tugas = (string)($assignment['judul_tugas'] ?? 'tugas');
+  $nama_kelas = (string)($assignment['nama_kelas'] ?? 'kelas');
+  $batas_waktu_ts = !empty($assignment['batas_waktu']) ? strtotime($assignment['batas_waktu']) : 0;
+
+  $safe = function ($s) {
+    $s = preg_replace('/[^A-Za-z0-9 _\-]/', '', (string)$s);
+    $s = trim(preg_replace('/\s+/', ' ', $s));
+    return $s === '' ? 'rekap' : $s;
+  };
+
+  $filename = 'Rekap_Tugas_' . $assignment_id . '_' . $safe($nama_kelas) . '_' . $safe($judul_tugas) . '_' . date('Y-m-d_His') . '.xlsx';
+  if (strlen($filename) > 180) {
+    $filename = 'Rekap_Tugas_' . $assignment_id . '_' . date('Y-m-d_His') . '.xlsx';
+  }
+
+  $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+  $sheet = $spreadsheet->getActiveSheet();
+  $sheet->setTitle('Rekap');
+
+  // Header
+  $headers = ['No', 'Nama', 'Email', 'Sekolah', 'Kelas', 'Status', 'Nilai', 'Waktu Submit', 'Batas Waktu'];
+  $col = 'A';
+  foreach ($headers as $h) {
+    $sheet->setCellValue($col . '1', $h);
+    $col++;
+  }
+
+  // Style header
+  $sheet->getStyle('A1:I1')->applyFromArray([
+    'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+    'fill' => [
+      'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+      'startColor' => ['rgb' => '0F172A'],
+    ],
+    'alignment' => [
+      'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+      'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+    ],
+  ]);
+
+  $sheet->freezePane('A2');
+
+  $now = time();
+  $batas_waktu_str = $batas_waktu_ts ? date('d-m-Y H:i', $batas_waktu_ts) : 'Tidak ada';
+  $i = 2;
+  $no = 1;
+  foreach ($rows as $r) {
+    $submitted_at_ts = !empty($r['submitted_at']) ? strtotime($r['submitted_at']) : 0;
+    $status = $submitted_at_ts ? 'Sudah Submit' : 'Belum Submit';
+    if (!$submitted_at_ts && $batas_waktu_ts && $now > $batas_waktu_ts) {
+      $status = 'Terlambat';
+    }
+    $submitted_at_str = $submitted_at_ts ? date('d-m-Y H:i', $submitted_at_ts) : '-';
+    $score = $r['score'] !== null ? (int)$r['score'] : '-';
+
+    $sheet->setCellValue('A' . $i, $no++);
+    $sheet->setCellValue('B' . $i, (string)($r['user_name'] ?? ''));
+    $sheet->setCellValue('C' . $i, (string)($r['email'] ?? ''));
+    $sheet->setCellValue('D' . $i, (string)($r['nama_sekolah'] ?? ''));
+    $sheet->setCellValue('E' . $i, (string)($r['nama_kelas'] ?? ''));
+    $sheet->setCellValue('F' . $i, $status);
+    $sheet->setCellValue('G' . $i, $score);
+    $sheet->setCellValue('H' . $i, $submitted_at_str);
+    $sheet->setCellValue('I' . $i, $batas_waktu_str);
+    $i++;
+  }
+
+  // Border untuk area terpakai
+  $lastRow = max(1, $i - 1);
+  $sheet->getStyle('A1:I' . $lastRow)->applyFromArray([
+    'borders' => [
+      'allBorders' => [
+        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+        'color' => ['rgb' => 'D1D5DB'],
+      ],
+    ],
+  ]);
+
+  // Lebar kolom
+  foreach (range('A', 'I') as $c) {
+    $sheet->getColumnDimension($c)->setAutoSize(true);
+  }
+
+  header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  header('Content-Disposition: attachment;filename="' . $filename . '"');
+  header('Cache-Control: max-age=0');
+  header('Pragma: public');
+
+  $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+  $writer->save('php://output');
+  exit;
+}
+
 // ===============================================
 // AWAL HANDLER KELOLA USER
 // ===============================================
@@ -3432,10 +3609,19 @@ function view_detail_kelas()
     return;
   }
 
+  echo '<div class="container py-4">';
+
   // Tampilkan header halaman
-  echo '<div class="d-flex justify-content-between align-items-center mb-3">';
-  echo '  <div><h3>' . h($kelas['nama_kelas']) . '</h3><p class="text-muted mb-0">Institusi: ' . h($kelas['nama_institusi']) . '</p></div>';
-  echo '  <a href="?page=kelola_institusi" class="btn btn-outline-secondary btn-sm">&laquo; Ganti Institusi</a>';
+  echo '<div class="card mb-3">';
+  echo '  <div class="card-body d-flex flex-wrap justify-content-between align-items-start gap-3">';
+  echo '    <div>';
+  echo '      <h3 class="mb-1">' . h($kelas['nama_kelas']) . '</h3>';
+  echo '      <div class="text-muted">Institusi: ' . h($kelas['nama_institusi']) . '</div>';
+  echo '    </div>';
+  echo '    <div class="d-flex flex-wrap gap-2">';
+  echo '      <a href="?page=kelola_institusi" class="btn btn-outline-secondary btn-sm">&laquo; Kembali</a>';
+  echo '    </div>';
+  echo '  </div>';
   echo '</div>';
 
   // Tampilkan notifikasi sukses jika ada
@@ -3457,10 +3643,13 @@ function view_detail_kelas()
   $anggota_ids = q("SELECT id_pelajar FROM class_members WHERE id_kelas = ?", [$id_kelas])->fetchAll(PDO::FETCH_COLUMN);
   $calon_anggota = q("SELECT id, name, avatar FROM users WHERE nama_sekolah = ? AND user_type = 'Pelajar' AND id != ? ORDER BY name ASC", [$kelas['nama_institusi'], $id_pengajar])->fetchAll();
 
-  echo '      <form action="?action=tambah_anggota" method="POST">';
+  echo '      <form action="?action=tambah_anggota" method="POST" class="pt-3">';
   echo '          <input type="hidden" name="id_kelas" value="' . $id_kelas . '">';
-  echo '          <div class="card border-top-0">';
-  echo '              <div class="card-header">Pilih Pelajar untuk Dimasukkan ke Kelas</div>';
+  echo '          <div class="card">';
+  echo '              <div class="card-header d-flex justify-content-between align-items-center">';
+  echo '                <div class="fw-semibold">Anggota Kelas</div>';
+  echo '                <div class="text-muted small">Centang pelajar lalu simpan</div>';
+  echo '              </div>';
   if (empty($calon_anggota)) {
     echo '          <div class="card-body text-center text-muted">Tidak ada pengguna "Pelajar" yang terdaftar di institusi ini.</div>';
   } else {
@@ -3469,7 +3658,10 @@ function view_detail_kelas()
       $checked = in_array($pelajar['id'], $anggota_ids) ? 'checked' : '';
       echo '              <li class="list-group-item"><div class="form-check">';
       echo '                  <input class="form-check-input" type="checkbox" name="pelajar_ids[]" value="' . $pelajar['id'] . '" id="pelajar-' . $pelajar['id'] . '" ' . $checked . '>';
-      echo '                  <label class="form-check-label d-flex align-items-center" for="pelajar-' . $pelajar['id'] . '"><img src="' . h($pelajar['avatar']) . '" class="avatar me-2" style="width:24px; height:24px;">' . h($pelajar['name']) . '</label>';
+      echo '                  <label class="form-check-label d-flex align-items-center gap-2" for="pelajar-' . $pelajar['id'] . '">';
+      echo '                    <img src="' . h($pelajar['avatar']) . '" class="avatar" style="width:24px; height:24px;">';
+      echo '                    <span class="flex-grow-1">' . h($pelajar['name']) . '</span>';
+      echo '                  </label>';
       echo '              </div></li>';
     }
     echo '          </ul>';
@@ -3485,36 +3677,47 @@ function view_detail_kelas()
   echo '  <div class="tab-pane fade" id="tugas-tab-pane" role="tabpanel">';
 
   // Ambil daftar tugas yang sudah ada
-$assignments = q("
+  $assignments = q("
     SELECT a.id, a.judul_tugas, a.batas_waktu, qt.title as judul_kuis
     FROM assignments a
     JOIN quiz_titles qt ON a.id_judul_soal = qt.id
     WHERE a.id_kelas = ? ORDER BY a.created_at DESC
 ", [$id_kelas])->fetchAll();
 
-if ($assignments) {
-  echo '<h5>Daftar Tugas yang Telah Diberikan</h5>';
-  // Tombol rekap nilai untuk pengajar pemilik kelas
-  echo '<div class="mb-3">';
-  echo '  <a href="?action=rekap_nilai&id_kelas=' . $id_kelas . '" class="btn btn-sm btn-success">Rekap Nilai</a>';
-  echo '</div>';
-    // Gunakan list-group-item-action agar bisa diklik
+  echo '<div class="pt-3">';
+  echo '  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">';
+  echo '    <h5 class="mb-0">Daftar Tugas</h5>';
+  echo '    <a href="?action=rekap_nilai&id_kelas=' . $id_kelas . '" class="btn btn-sm btn-success">Rekap Nilai (CSV)</a>';
+  echo '  </div>';
+
+  if ($assignments) {
     echo '<div class="list-group mb-4">';
     foreach ($assignments as $tugas) {
-        // Ubah <div> menjadi <a> yang mengarah ke halaman detail tugas
-        echo '<a href="?page=detail_tugas&assignment_id=' . $tugas['id'] . '" class="list-group-item list-group-item-action">';
-        echo '  <div class="fw-bold">' . h($tugas['judul_tugas']) . '</div>';
-        echo '  <small class="text-muted">Kuis: ' . h($tugas['judul_kuis']) . '</small><br>';
-        echo '  <small class="text-muted">Batas Waktu: ' . ($tugas['batas_waktu'] ? date('d M Y, H:i', strtotime($tugas['batas_waktu'])) : 'Tidak ada') . '</small>';
-        echo '</a>'; // Penutup tag <a>
+      $deadline = $tugas['batas_waktu'] ? date('d M Y, H:i', strtotime($tugas['batas_waktu'])) : 'Tidak ada';
+      echo '<div class="list-group-item">';
+      echo '  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">';
+      echo '    <div class="flex-grow-1">';
+      echo '      <div class="fw-semibold">' . h($tugas['judul_tugas']) . '</div>';
+      echo '      <div class="small text-muted">Kuis: ' . h($tugas['judul_kuis']) . '</div>';
+      echo '      <div class="small text-muted">Batas Waktu: ' . $deadline . '</div>';
+      echo '    </div>';
+      echo '    <div class="btn-group btn-group-sm">';
+      echo '      <a href="?page=detail_tugas&assignment_id=' . (int)$tugas['id'] . '" class="btn btn-outline-primary">Monitor</a>';
+      echo '      <a href="?action=rekap_tugas_excel&assignment_id=' . (int)$tugas['id'] . '" class="btn btn-outline-success" target="_blank" rel="noopener">Excel</a>';
+      echo '    </div>';
+      echo '  </div>';
+      echo '</div>';
     }
     echo '</div>';
-}
+  } else {
+    echo '<div class="alert alert-light border">Belum ada tugas untuk kelas ini.</div>';
+  }
+  echo '</div>';
 
   // Form untuk memberi tugas baru
 $all_quizzes = q("SELECT id, title FROM quiz_titles ORDER BY title ASC")->fetchAll();
 
-echo '      <div class="card border-top-0">';
+echo '      <div class="card">';
 echo '          <div class="card-header">Beri Tugas Baru</div>';
 echo '          <div class="card-body">';
 echo '              <form action="?action=beri_tugas" method="POST">';
@@ -3553,6 +3756,7 @@ echo '      </div>';
   echo '  </div>';
 
   echo '</div>'; // Penutup tab-content
+  echo '</div>'; // Penutup container
 }
 
 
@@ -8475,7 +8679,12 @@ function view_monitor_jawaban()
     echo '<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>';
     echo '<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>';
     // --------------------------------
-    echo '<h3>📊 Monitor Jawaban & Status Pengerjaan (Mode Exam)</h3>';
+    echo '<div class="d-flex flex-wrap justify-content-between align-items-center gap-2">';
+    echo '<h3 class="mb-0">📊 Monitor Jawaban & Status Pengerjaan (Mode Exam)</h3>';
+    if ($assignment_id > 0) {
+      echo '<a class="btn btn-success btn-sm" href="?action=rekap_tugas_excel&assignment_id=' . (int)$assignment_id . '" target="_blank" rel="noopener">⬇️ Download Rekap (Excel)</a>';
+    }
+    echo '</div>';
     echo '<p class="text-muted">
         <strong>Status:</strong> 
         ✅ Sudah Submit (jawaban final) | 
