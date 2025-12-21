@@ -9,6 +9,17 @@ if (!is_pengajar() && !is_admin()) {
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+// Cek apakah PhpSpreadsheet tersedia
+if (!class_exists('PhpOffice\PhpSpreadsheet\Spreadsheet')) {
+    echo '<div class="alert alert-danger">';
+    echo '<h4>Error: PhpSpreadsheet Library Tidak Ditemukan</h4>';
+    echo '<p>Library PhpOffice/PhpSpreadsheet belum terinstall. Silakan jalankan perintah berikut di terminal server:</p>';
+    echo '<pre style="background: #f5f5f5; padding: 10px; border-radius: 5px;">cd /home/quic1934/public_html<br>composer update</pre>';
+    echo '<p class="mb-0">Atau jalankan: <code>composer require phpoffice/phpspreadsheet</code></p>';
+    echo '</div>';
+    return;
+}
+
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
