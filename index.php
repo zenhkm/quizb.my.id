@@ -671,10 +671,30 @@ if (($page ?? '') === 'play' && isset($_GET['mode']) && !isset($_GET['i']) && !i
     $title_id = (int)($_GET['title_id'] ?? 0);
     $mode = $_GET['mode'] ?? 'instant';
     
-        // Pastikan session lama ditutup jika beda judul
+    // Validasi akses ke title berdasarkan role
     $user_id = uid();
+    $allowed_teacher_ids = get_allowed_teacher_ids_for_content();
+    
+    // Cek apakah title bisa diakses
+    if (empty($allowed_teacher_ids)) {
+        $title_check = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id IS NULL", [$title_id])->fetch();
+    } else {
+        $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
+        $title_check = q(
+            "SELECT id FROM quiz_titles WHERE id = ? AND (owner_user_id IS NULL OR owner_user_id IN ($placeholders))",
+            array_merge([$title_id], $allowed_teacher_ids)
+        )->fetch();
+    }
+    
+    if (!$title_check) {
+        echo '<div class="container mt-4"><div class="alert alert-danger">Anda tidak memiliki akses ke kuis ini.</div>';
+        echo '<a href="?page=home" class="btn btn-primary">Kembali ke Beranda</a></div>';
+        html_foot();
+        exit;
+    }
+    
+    // Pastikan session lama ditutup jika beda judul
     ensure_session_bound_to_title(pdo_instance(), $user_id, $title_id);
-
 
     // Panggil create_session tanpa argumen jumlah soal (akan menggunakan default 10)
     $sid = create_session($title_id, $mode);
