@@ -42,34 +42,45 @@ echo <<<'CSS'
     }
     .quiz-choice-item:disabled { opacity: .7; cursor: not-allowed; }
 
-    /* Header exam rapi & simetris */
+    /* Header exam rapi & simetris (modern) */
     .exam-header {
         display: grid;
         grid-template-columns: 1fr auto 1fr;
         gap: .5rem;
         align-items: center;
-        margin-bottom: .5rem;
+        margin-bottom: .75rem;
         position: sticky; top: 0; z-index: 2;
-        background: var(--surface-1, var(--bs-body-bg));
-        padding: .25rem .25rem;
-        border-bottom: 1px solid var(--border-1, var(--bs-border-color));
+        background: var(--bs-body-bg);
+        padding: .6rem .75rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--bs-border-radius-lg);
+        box-shadow: var(--bs-box-shadow-sm);
     }
     .exam-header .left { justify-self: start; }
     .exam-header .center { justify-self: center; text-align: center; }
     .exam-header .right { justify-self: end; text-align: right; display: flex; gap: .5rem; align-items: center; }
-    #exam-timer-display { min-width: 140px; }
-    #exam-fs-btn.btn { white-space: nowrap; }
-    /* Compact counter pill */
-    #exam-q-counter {
+    #exam-fs-btn.btn { white-space: nowrap; border-radius: 999px; }
+
+    /* Header pills */
+    #exam-q-counter,
+    #exam-timer-display {
         display: inline-flex;
         align-items: center;
         gap: .35rem;
-        padding: .25rem .5rem;
-        border: 1px solid var(--border-1, var(--bs-border-color));
-        background: var(--surface-2, var(--bs-tertiary-bg));
-        color: var(--text-2, var(--bs-secondary-color));
-        border-radius: var(--radius-lg, .75rem);
+        padding: .35rem .6rem;
+        border: 1px solid var(--bs-border-color);
+        background: var(--bs-tertiary-bg);
+        color: var(--bs-body-color);
+        border-radius: 999px;
         font-weight: 600;
+        font-size: .95rem;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+    }
+    #exam-timer-display.is-exam {
+        border-color: var(--bs-danger-border-subtle);
+        background: var(--bs-danger-bg-subtle);
+        color: var(--bs-danger-text-emphasis);
     }
     /* Smooth progress bar fill */
     .progress { height: 6px; border-radius: var(--radius-lg, .75rem); overflow: hidden; }
@@ -186,14 +197,14 @@ echo <<<JS
             <div id="exam-shell" class="quiz-container">
                 <div class="exam-header">
                   <div class="left">
-                    <span id="exam-q-counter" class="badge bg-secondary">Soal \${index + 1} dari \${totalQuestions}</span>
+                                        <span id="exam-q-counter">Soal \${index + 1} dari \${totalQuestions}</span>
                   </div>
                   <div class="center">
                     <h4 class="h5 m-0">\${escapeHTML(quizState.title)}</h4>
                   </div>
                   <div class="right">
-                    <span id="exam-timer-display" class="badge text-bg-secondary fs-6">Sisa waktu: <b id="timerLabel">{$timerSecs}</b> detik</span>
-                    <button id="exam-fs-btn" type="button" class="btn btn-outline-dark btn-sm" title="Layar Penuh">⤢ Layar Penuh</button>
+                                        <span id="exam-timer-display">Sisa waktu: <b id="timerLabel">{$timerSecs}</b> detik</span>
+                                        <button id="exam-fs-btn" type="button" class="btn btn-outline-secondary btn-sm" title="Layar Penuh">Layar Penuh</button>
                   </div>
                 </div>
                 <div class="progress mb-3" style="height: 5px;"><div class="progress-bar" id="exam-progress-bar" style="width: \${((index + 1) / totalQuestions) * 100}%;"></div></div>
@@ -281,14 +292,14 @@ echo <<<JS
             <div id="exam-shell" class="quiz-container">
                                 <div class="exam-header">
                                     <div class="left">
-                                        <span id="exam-q-counter" class="badge bg-secondary"></span>
+                                        <span id="exam-q-counter"></span>
                                     </div>
                                     <div class="center">
                                         <h4 class="h5 m-0">\${escapeHTML(quizState.title)}</h4>
                                     </div>
                                     <div class="right">
-                                        <span id="exam-timer-display" class="badge text-bg-danger fs-6">Sisa Waktu: --:--</span>
-                                        <button id="exam-fs-btn" type="button" class="btn btn-outline-dark btn-sm" title="Layar Penuh">⤢ Layar Penuh</button>
+                                        <span id="exam-timer-display" class="is-exam">Sisa Waktu: --:--</span>
+                                        <button id="exam-fs-btn" type="button" class="btn btn-outline-secondary btn-sm" title="Layar Penuh">Layar Penuh</button>
                                     </div>
                                 </div>
                 <div class="progress mb-3" style="height: 5px;"><div class="progress-bar" id="exam-progress-bar"></div></div>
