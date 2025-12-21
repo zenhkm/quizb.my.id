@@ -13,22 +13,8 @@ $selected_subtheme = (int)($_GET['subtheme_id'] ?? 0);
 $selected_title = (int)($_GET['title_id'] ?? 0);
 $edit_question = (int)($_GET['edit_q'] ?? 0);
 
-// Master list (untuk modal tambah judul). Tidak ditampilkan di sidebar.
-$all_themes = q("SELECT id, name FROM themes ORDER BY sort_order, name")->fetchAll();
-
-// Ambil data untuk panel - hanya tema/subtema yang punya judul milik pengajar
-// (agar tema/subtema yang hanya berisi konten admin tidak muncul)
-$themes = q(
-    "
-    SELECT DISTINCT t.*
-    FROM themes t
-    JOIN subthemes st ON st.theme_id = t.id
-    JOIN quiz_titles qt ON qt.subtheme_id = st.id
-    WHERE qt.owner_user_id = ?
-    ORDER BY t.sort_order, t.name
-    ",
-    [$user_id]
-)->fetchAll();
+// Ambil data untuk panel - HANYA konten milik pengajar (owner_user_id = uid)
+$themes = q("SELECT * FROM themes WHERE owner_user_id = ? ORDER BY sort_order, name", [$user_id])->fetchAll();
 $subthemes = [];
 $titles = [];
 $questions = [];
@@ -36,14 +22,7 @@ $question_detail = null;
 
 if ($selected_theme) {
     $subthemes = q(
-        "
-        SELECT DISTINCT st.*
-        FROM subthemes st
-        JOIN quiz_titles qt ON qt.subtheme_id = st.id
-        WHERE st.theme_id = ?
-          AND qt.owner_user_id = ?
-        ORDER BY st.name
-        ",
+        "SELECT * FROM subthemes WHERE theme_id = ? AND owner_user_id = ? ORDER BY name",
         [$selected_theme, $user_id]
     )->fetchAll();
 }
@@ -92,7 +71,7 @@ $success = $_GET['success'] ?? '';
 $message = $_GET['msg'] ?? '';
 ?>
 
-
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
 <style>
 .bank-soal-container {
@@ -252,17 +231,11 @@ $message = $_GET['msg'] ?? '';
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-bank me-2" viewBox="0 0 16 16">
                 <path d="m8 0 6.61 3h.89a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H15v7a.5.5 0 0 1 .485.38l.5 2a.498.498 0 0 1-.485.62H.5a.498.498 0 0 1-.485-.62l.5-2A.501.501 0 0 1 1 13V6H.5a.5.5 0 0 1-.5-.5v-2A.5.5 0 0 1 .5 3h.89L8 0ZM3.777 3h8.447L8 1 3.777 3ZM2 6v7h1V6H2Zm2 0v7h2.5V6H4Zm3.5 0v7h1V6h-1Zm2 0v7H12V6H9.5ZM13 6v7h1V6h-1Zm2-1V4H1v1h14Zm-.39 9H1.39l-.25 1h13.72l-.25-1Z"/>
             </svg>
-            Bank Soal Saya
+            Bank Soal
         </h2>
-        <p class="text-muted mb-0">Kelola judul dan soal milik Anda</p>
+        <p class="text-muted mb-0">Kelola tema, subtema, judul, dan soal dalam satu halaman</p>
     </div>
     <div class="btn-group">
-        <button type="button" class="btn btn-primary" onclick="showAddTitleModal()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1" aria-hidden="true">
-                <path d="M8 1a.5.5 0 0 1 .5.5V7.5H14.5a.5.5 0 0 1 0 1H8.5V14.5a.5.5 0 0 1-1 0V8.5H1.5a.5.5 0 0 1 0-1H7.5V1.5A.5.5 0 0 1 8 1"/>
-            </svg>
-            Tambah Judul
-        </button>
         <a href="?page=import_questions" class="btn btn-outline-primary">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-upload" viewBox="0 0 16 16">
                 <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
@@ -278,6 +251,7 @@ $message = $_GET['msg'] ?? '';
     <div class="panel">
         <div class="panel-header">
             <span>📚 Tema</span>
+            <button class="btn btn-sm btn-light" onclick="showAddThemeModal()">+</button>
         </div>
         <div class="panel-body">
             <?php if (empty($themes)): ?>
@@ -285,14 +259,22 @@ $message = $_GET['msg'] ?? '';
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/>
                 </svg>
-                <p class="mb-0">Belum ada tema untuk konten Anda</p>
-                <small>Tambahkan judul/soal terlebih dahulu</small>
+                <p class="mb-0">Belum ada tema</p>
+                <small>Klik + untuk menambah</small>
             </div>
             <?php else: ?>
                 <?php foreach ($themes as $theme): ?>
                 <div class="panel-item <?= $theme['id'] == $selected_theme ? 'active' : '' ?>" 
                      onclick="window.location='?page=teacher_bank_soal&theme_id=<?= $theme['id'] ?>'">
                     <span><?= h($theme['name']) ?></span>
+                    <div class="panel-item-actions">
+                        <button class="btn btn-icon btn-sm btn-outline-primary" onclick="event.stopPropagation(); editTheme(<?= $theme['id'] ?>, '<?= h($theme['name']) ?>')" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-icon btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteTheme(<?= $theme['id'] ?>)" title="Hapus">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                 </div>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -303,6 +285,9 @@ $message = $_GET['msg'] ?? '';
     <div class="panel">
         <div class="panel-header">
             <span>📖 Subtema</span>
+            <?php if ($selected_theme): ?>
+            <button class="btn btn-sm btn-light" onclick="showAddSubthemeModal(<?= $selected_theme ?>)">+</button>
+            <?php endif; ?>
         </div>
         <div class="panel-body">
             <?php if (!$selected_theme): ?>
@@ -315,14 +300,22 @@ $message = $_GET['msg'] ?? '';
             </div>
             <?php elseif (empty($subthemes)): ?>
             <div class="empty-state">
-                <p class="mb-0">Belum ada subtema untuk konten Anda</p>
-                <small>Pilih tema lain atau tambahkan judul pada subtema</small>
+                <p class="mb-0">Belum ada subtema</p>
+                <small>Klik + untuk menambah</small>
             </div>
             <?php else: ?>
                 <?php foreach ($subthemes as $sub): ?>
                 <div class="panel-item <?= $sub['id'] == $selected_subtheme ? 'active' : '' ?>" 
                      onclick="window.location='?page=teacher_bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $sub['id'] ?>'">
                     <span><?= h($sub['name']) ?></span>
+                    <div class="panel-item-actions">
+                        <button class="btn btn-icon btn-sm btn-outline-primary" onclick="event.stopPropagation(); editSubtheme(<?= $sub['id'] ?>, '<?= h($sub['name']) ?>')" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-icon btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteSubtheme(<?= $sub['id'] ?>)" title="Hapus">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                 </div>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -332,7 +325,7 @@ $message = $_GET['msg'] ?? '';
     <!-- PANEL 3: JUDUL & SOAL -->
     <div class="panel">
         <div class="panel-header">
-            <span>📝 Judul & Soal Saya</span>
+            <span>📝 Judul & Soal</span>
             <?php if ($selected_subtheme): ?>
             <button class="btn btn-sm btn-light" onclick="showAddTitleModal(<?= $selected_subtheme ?>)">+ Judul</button>
             <?php endif; ?>
@@ -348,13 +341,13 @@ $message = $_GET['msg'] ?? '';
             </div>
             <?php elseif (empty($titles)): ?>
             <div class="empty-state">
-                <p class="mb-0">Belum ada judul soal milik Anda</p>
+                <p class="mb-0">Belum ada judul soal</p>
                 <small>Klik + Judul untuk menambah</small>
             </div>
             <?php else: ?>
                 <!-- List untuk judul dengan tombol edit/delete -->
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Daftar Judul Soal Saya:</label>
+                    <label class="form-label fw-bold">Daftar Judul Soal:</label>
                     <div class="list-group">
                         <?php foreach ($titles as $idx => $title): ?>
                         <div class="list-group-item <?= $title['id'] == $selected_title ? 'active' : '' ?>" 
@@ -363,15 +356,10 @@ $message = $_GET['msg'] ?? '';
                             <span><?= h($title['title']) ?></span>
                             <div onclick="event.stopPropagation();" style="display: flex; gap: 4px;">
                                 <button class="btn btn-sm btn-outline-primary" onclick="editTitle(<?= $title['id'] ?>, '<?= h($title['title']) ?>', <?= $selected_subtheme ?>)" title="Edit">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2L2 11.207V13h1.793L13 3.793z"/>
-                                    </svg>
+                                    <i class="bi bi-pencil"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteTitle(<?= $title['id'] ?>)" title="Hapus">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0A.5.5 0 0 1 8.5 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-                                    </svg>
+                                    <i class="bi bi-trash"></i>
                                 </button>
                             </div>
                         </div>
@@ -468,16 +456,11 @@ $message = $_GET['msg'] ?? '';
                             </div>
                             <div class="btn-group btn-group-sm">
                                 <a href="?page=teacher_bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $selected_title ?>&edit_q=<?= $q['id'] ?>" class="btn btn-outline-primary">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" class="me-1">
-                                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2L2 11.207V13h1.793L13 3.793z"/>
-                                    </svg>
+                                    <i class="bi bi-pencil"></i>
                                     Edit
                                 </a>
                                 <button class="btn btn-outline-danger" onclick="deleteQuestion(<?= $q['id'] ?>)">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" class="me-1">
-                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0A.5.5 0 0 1 8.5 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-                                    </svg>
+                                    <i class="bi bi-trash"></i>
                                     Hapus
                                 </button>
                             </div>
@@ -487,6 +470,63 @@ $message = $_GET['msg'] ?? '';
                 <?php endif; ?>
                 <?php endif; ?>
             <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Add/Edit Theme -->
+<div class="modal fade" id="themeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="?page=teacher_bank_soal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="themeModalTitle">Tambah Tema</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="act" id="theme_act" value="add_theme">
+                    <input type="hidden" name="theme_id" id="theme_id">
+                    <div class="mb-3">
+                        <label class="form-label">Nama Tema</label>
+                        <input type="text" name="name" id="theme_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Deskripsi</label>
+                        <textarea name="description" id="theme_description" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Add/Edit Subtema -->
+<div class="modal fade" id="subthemeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="?page=teacher_bank_soal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="subthemeModalTitle">Tambah Subtema</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="act" id="subtheme_act" value="add_subtheme">
+                    <input type="hidden" name="theme_id" id="subtheme_theme_id">
+                    <input type="hidden" name="subtheme_id" id="subtheme_id">
+                    <div class="mb-3">
+                        <label class="form-label">Nama Subtema</label>
+                        <input type="text" name="name" id="subtheme_name" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -506,16 +546,6 @@ $message = $_GET['msg'] ?? '';
                     <input type="hidden" name="title_id" id="title_id">
                     <input type="hidden" name="theme_id" id="title_theme_id">
 
-                    <div id="title-picker" class="mb-3" style="display:none;">
-                        <label class="form-label">Tema</label>
-                        <select id="title_theme_select" class="form-select"></select>
-                        <div class="mt-3">
-                            <label class="form-label">Subtema</label>
-                            <select id="title_subtheme_select" class="form-select"></select>
-                            <div id="title_subtheme_help" class="form-text"></div>
-                        </div>
-                    </div>
-
                     <div class="mb-3">
                         <label class="form-label">Judul Soal</label>
                         <input type="text" name="title" id="title_name" class="form-control" required>
@@ -523,7 +553,7 @@ $message = $_GET['msg'] ?? '';
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary" id="btnSaveTitle">Simpan</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
                 </div>
             </form>
         </div>
@@ -587,116 +617,77 @@ $message = $_GET['msg'] ?? '';
 <script>
 let choiceCount = 2;
 
-const ALL_THEMES = <?= json_encode($all_themes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-
-function setTitleSaveEnabled(isEnabled, helpText = '') {
-    const btn = document.getElementById('btnSaveTitle');
-    const help = document.getElementById('title_subtheme_help');
-    if (btn) btn.disabled = !isEnabled;
-    if (help) help.textContent = helpText || '';
+function showAddThemeModal() {
+    document.getElementById('theme_act').value = 'add_theme';
+    document.getElementById('themeModalTitle').textContent = 'Tambah Tema';
+    document.getElementById('theme_id').value = '';
+    document.getElementById('theme_name').value = '';
+    document.getElementById('theme_description').value = '';
+    new bootstrap.Modal(document.getElementById('themeModal')).show();
 }
 
-async function loadSubthemesForTheme(themeId, preferSubthemeId = 0) {
-    const subSelect = document.getElementById('title_subtheme_select');
-    const hiddenSub = document.getElementById('title_subtheme_id');
-    if (!subSelect || !hiddenSub) return;
+function editTheme(id, name) {
+    document.getElementById('theme_act').value = 'edit_theme';
+    document.getElementById('themeModalTitle').textContent = 'Edit Tema';
+    document.getElementById('theme_id').value = id;
+    document.getElementById('theme_name').value = name;
+    document.getElementById('theme_description').value = '';
+    new bootstrap.Modal(document.getElementById('themeModal')).show();
+}
 
-    subSelect.innerHTML = '';
-    hiddenSub.value = '';
-    setTitleSaveEnabled(false, 'Memuat subtema...');
-
-    try {
-        const res = await fetch(`?action=api_get_subthemes&theme_id=${encodeURIComponent(themeId)}`);
-        if (!res.ok) throw new Error('Gagal memuat subtema');
-        const data = await res.json();
-
-        if (!Array.isArray(data) || data.length === 0) {
-            setTitleSaveEnabled(false, 'Tidak ada subtema pada tema ini.');
-            return;
-        }
-
-        for (const st of data) {
-            const opt = document.createElement('option');
-            opt.value = String(st.id);
-            opt.textContent = st.name;
-            subSelect.appendChild(opt);
-        }
-
-        const targetId = preferSubthemeId && data.some(x => Number(x.id) === Number(preferSubthemeId))
-            ? String(preferSubthemeId)
-            : String(data[0].id);
-
-        subSelect.value = targetId;
-        hiddenSub.value = targetId;
-        setTitleSaveEnabled(true, '');
-    } catch (e) {
-        console.error(e);
-        setTitleSaveEnabled(false, 'Gagal memuat subtema.');
+function deleteTheme(id) {
+    if (confirm('Yakin hapus tema ini? Semua subtema dan soal akan ikut terhapus!')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '?page=teacher_bank_soal';
+        form.innerHTML = `
+            <input type="hidden" name="act" value="delete_theme">
+            <input type="hidden" name="theme_id" value="${id}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 
-function initTitlePicker() {
-    const picker = document.getElementById('title-picker');
-    const themeSelect = document.getElementById('title_theme_select');
-    const subSelect = document.getElementById('title_subtheme_select');
-    const hiddenTheme = document.getElementById('title_theme_id');
-    const hiddenSub = document.getElementById('title_subtheme_id');
+function showAddSubthemeModal(themeId) {
+    document.getElementById('subtheme_act').value = 'add_subtheme';
+    document.getElementById('subthemeModalTitle').textContent = 'Tambah Subtema';
+    document.getElementById('subtheme_theme_id').value = themeId;
+    document.getElementById('subtheme_id').value = '';
+    document.getElementById('subtheme_name').value = '';
+    new bootstrap.Modal(document.getElementById('subthemeModal')).show();
+}
 
-    if (!picker || !themeSelect || !subSelect || !hiddenTheme || !hiddenSub) return;
+function editSubtheme(id, name) {
+    document.getElementById('subtheme_act').value = 'edit_subtheme';
+    document.getElementById('subthemeModalTitle').textContent = 'Edit Subtema';
+    document.getElementById('subtheme_id').value = id;
+    document.getElementById('subtheme_name').value = name;
+    new bootstrap.Modal(document.getElementById('subthemeModal')).show();
+}
 
-    picker.style.display = 'block';
-    themeSelect.innerHTML = '';
-
-    if (!Array.isArray(ALL_THEMES) || ALL_THEMES.length === 0) {
-        setTitleSaveEnabled(false, 'Tema belum tersedia.');
-        return;
+function deleteSubtheme(id) {
+    if (confirm('Yakin hapus subtema ini? Semua judul dan soal akan ikut terhapus!')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '?page=teacher_bank_soal';
+        const themeId = new URLSearchParams(window.location.search).get('theme_id');
+        form.innerHTML = `
+            <input type="hidden" name="act" value="delete_subtheme">
+            <input type="hidden" name="subtheme_id" value="${id}">
+            <input type="hidden" name="theme_id" value="${themeId || ''}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
     }
-
-    for (const t of ALL_THEMES) {
-        const opt = document.createElement('option');
-        opt.value = String(t.id);
-        opt.textContent = t.name;
-        themeSelect.appendChild(opt);
-    }
-
-    const qs = new URLSearchParams(window.location.search);
-    const preferThemeId = Number(qs.get('theme_id') || 0);
-    const preferSubthemeId = Number(qs.get('subtheme_id') || 0);
-    const initialThemeId = preferThemeId && ALL_THEMES.some(x => Number(x.id) === preferThemeId)
-        ? String(preferThemeId)
-        : String(ALL_THEMES[0].id);
-
-    themeSelect.value = initialThemeId;
-    hiddenTheme.value = initialThemeId;
-
-    themeSelect.onchange = async () => {
-        hiddenTheme.value = themeSelect.value;
-        await loadSubthemesForTheme(themeSelect.value, 0);
-    };
-    subSelect.onchange = () => {
-        hiddenSub.value = subSelect.value;
-    };
-
-    loadSubthemesForTheme(initialThemeId, preferSubthemeId);
 }
 
 function showAddTitleModal(subthemeId) {
     document.getElementById('title_act').value = 'add_title';
     document.getElementById('titleModalTitle').textContent = 'Tambah Judul Soal';
-    const picker = document.getElementById('title-picker');
-    const hiddenSub = document.getElementById('title_subtheme_id');
-
-    if (subthemeId) {
-        if (picker) picker.style.display = 'none';
-        hiddenSub.value = subthemeId;
-        const themeId = new URLSearchParams(window.location.search).get('theme_id');
-        document.getElementById('title_theme_id').value = themeId || '';
-        setTitleSaveEnabled(true, '');
-    } else {
-        hiddenSub.value = '';
-        document.getElementById('title_theme_id').value = '';
-        initTitlePicker();
-    }
+    document.getElementById('title_subtheme_id').value = subthemeId;
+    const themeId = new URLSearchParams(window.location.search).get('theme_id');
+    document.getElementById('title_theme_id').value = themeId || '';
 
     document.getElementById('title_name').value = '';
     document.getElementById('title_id').value = '';

@@ -10,6 +10,160 @@ if (!is_pengajar() && !is_admin()) {
 $user_id = uid();
 $act = $_POST['act'] ?? '';
 
+// =====================================================================
+// TEMA & SUBTEMA (MILIK PENGAJAR)
+// =====================================================================
+
+if ($act === 'add_theme') {
+    $name = trim($_POST['name'] ?? '');
+    $desc = trim($_POST['description'] ?? '');
+    if ($name !== '') {
+        $max = q("SELECT COALESCE(MAX(sort_order), 0) AS m FROM themes WHERE owner_user_id = ?", [$user_id])->fetch();
+        $next = (int)($max['m'] ?? 0) + 10;
+        q(
+            "INSERT INTO themes (name, description, sort_order, owner_user_id) VALUES (?,?,?,?)",
+            [$name, ($desc !== '' ? $desc : null), $next, $user_id]
+        );
+        $new_id = (int)pdo()->lastInsertId();
+        header("Location: ?page=teacher_bank_soal&theme_id=$new_id&success=1&msg=" . urlencode('Tema berhasil ditambahkan'));
+        exit;
+    }
+    header('Location: ?page=teacher_bank_soal');
+    exit;
+}
+
+if ($act === 'edit_theme') {
+    $id = (int)($_POST['theme_id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+    if ($id > 0 && $name !== '') {
+        $is_owner = q("SELECT id FROM themes WHERE id=? AND owner_user_id=?", [$id, $user_id])->fetch();
+        if ($is_owner) {
+            q("UPDATE themes SET name=? WHERE id=? AND owner_user_id=?", [$name, $id, $user_id]);
+            header("Location: ?page=teacher_bank_soal&theme_id=$id&success=1&msg=" . urlencode('Tema berhasil diupdate'));
+            exit;
+        }
+    }
+    header('Location: ?page=teacher_bank_soal');
+    exit;
+}
+
+if ($act === 'delete_theme') {
+    $id = (int)($_POST['theme_id'] ?? 0);
+    if ($id > 0) {
+        $is_owner = q("SELECT id FROM themes WHERE id=? AND owner_user_id=?", [$id, $user_id])->fetch();
+        if ($is_owner) {
+            // Cascade delete: subthemes -> titles -> questions -> choices
+            $sub_ids = q("SELECT id FROM subthemes WHERE theme_id=? AND owner_user_id=?", [$id, $user_id])->fetchAll(PDO::FETCH_COLUMN);
+            if (!empty($sub_ids)) {
+                $sub_placeholders = implode(',', array_fill(0, count($sub_ids), '?'));
+                $title_ids = q(
+                    "SELECT id FROM quiz_titles WHERE subtheme_id IN ($sub_placeholders) AND owner_user_id=?",
+                    array_merge($sub_ids, [$user_id])
+                )->fetchAll(PDO::FETCH_COLUMN);
+                if (!empty($title_ids)) {
+                    $title_placeholders = implode(',', array_fill(0, count($title_ids), '?'));
+                    $q_ids = q(
+                        "SELECT id FROM questions WHERE title_id IN ($title_placeholders) AND owner_user_id=?",
+                        array_merge($title_ids, [$user_id])
+                    )->fetchAll(PDO::FETCH_COLUMN);
+                    if (!empty($q_ids)) {
+                        $q_placeholders = implode(',', array_fill(0, count($q_ids), '?'));
+                        q("DELETE FROM choices WHERE question_id IN ($q_placeholders)", $q_ids);
+                        q(
+                            "DELETE FROM questions WHERE id IN ($q_placeholders) AND owner_user_id=?",
+                            array_merge($q_ids, [$user_id])
+                        );
+                    }
+                    q(
+                        "DELETE FROM quiz_titles WHERE id IN ($title_placeholders) AND owner_user_id=?",
+                        array_merge($title_ids, [$user_id])
+                    );
+                }
+                q(
+                    "DELETE FROM subthemes WHERE id IN ($sub_placeholders) AND owner_user_id=?",
+                    array_merge($sub_ids, [$user_id])
+                );
+            }
+
+            q("DELETE FROM themes WHERE id=? AND owner_user_id=?", [$id, $user_id]);
+            header("Location: ?page=teacher_bank_soal&success=1&msg=" . urlencode('Tema berhasil dihapus'));
+            exit;
+        }
+    }
+    header('Location: ?page=teacher_bank_soal');
+    exit;
+}
+
+if ($act === 'add_subtheme') {
+    $theme_id = (int)($_POST['theme_id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+    if ($theme_id > 0 && $name !== '') {
+        $is_owner = q("SELECT id FROM themes WHERE id=? AND owner_user_id=?", [$theme_id, $user_id])->fetch();
+        if ($is_owner) {
+            q("INSERT INTO subthemes (theme_id, name, owner_user_id) VALUES (?,?,?)", [$theme_id, $name, $user_id]);
+            $new_id = (int)pdo()->lastInsertId();
+            header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&subtheme_id=$new_id&success=1&msg=" . urlencode('Subtema berhasil ditambahkan'));
+            exit;
+        }
+    }
+    header('Location: ?page=teacher_bank_soal');
+    exit;
+}
+
+if ($act === 'edit_subtheme') {
+    $id = (int)($_POST['subtheme_id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+    if ($id > 0 && $name !== '') {
+        $row = q("SELECT theme_id FROM subthemes WHERE id=? AND owner_user_id=?", [$id, $user_id])->fetch();
+        if ($row) {
+            q("UPDATE subthemes SET name=? WHERE id=? AND owner_user_id=?", [$name, $id, $user_id]);
+            $theme_id = (int)$row['theme_id'];
+            header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&subtheme_id=$id&success=1&msg=" . urlencode('Subtema berhasil diupdate'));
+            exit;
+        }
+    }
+    header('Location: ?page=teacher_bank_soal');
+    exit;
+}
+
+if ($act === 'delete_subtheme') {
+    $id = (int)($_POST['subtheme_id'] ?? 0);
+    if ($id > 0) {
+        $row = q("SELECT theme_id FROM subthemes WHERE id=? AND owner_user_id=?", [$id, $user_id])->fetch();
+        if ($row) {
+            $theme_id = (int)$row['theme_id'];
+
+            // Cascade delete: titles -> questions -> choices
+            $title_ids = q("SELECT id FROM quiz_titles WHERE subtheme_id=? AND owner_user_id=?", [$id, $user_id])->fetchAll(PDO::FETCH_COLUMN);
+            if (!empty($title_ids)) {
+                $title_placeholders = implode(',', array_fill(0, count($title_ids), '?'));
+                $q_ids = q(
+                    "SELECT id FROM questions WHERE title_id IN ($title_placeholders) AND owner_user_id=?",
+                    array_merge($title_ids, [$user_id])
+                )->fetchAll(PDO::FETCH_COLUMN);
+                if (!empty($q_ids)) {
+                    $q_placeholders = implode(',', array_fill(0, count($q_ids), '?'));
+                    q("DELETE FROM choices WHERE question_id IN ($q_placeholders)", $q_ids);
+                    q(
+                        "DELETE FROM questions WHERE id IN ($q_placeholders) AND owner_user_id=?",
+                        array_merge($q_ids, [$user_id])
+                    );
+                }
+                q(
+                    "DELETE FROM quiz_titles WHERE id IN ($title_placeholders) AND owner_user_id=?",
+                    array_merge($title_ids, [$user_id])
+                );
+            }
+
+            q("DELETE FROM subthemes WHERE id=? AND owner_user_id=?", [$id, $user_id]);
+            header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&success=1&msg=" . urlencode('Subtema berhasil dihapus'));
+            exit;
+        }
+    }
+    header('Location: ?page=teacher_bank_soal');
+    exit;
+}
+
 // ADD/EDIT TITLE (MILIK PENGAJAR)
 if ($act == 'add_title') {
     $subtheme_id = (int)$_POST['subtheme_id'];
@@ -86,7 +240,7 @@ if ($act == 'add_question') {
         // Insert question
         q("INSERT INTO questions (title_id, text, explanation, owner_user_id) VALUES (?, ?, ?, ?)", 
           [$title_id, $text, $explanation, $user_id]);
-        $question_id = lastInsertId();
+                $question_id = (int)pdo()->lastInsertId();
         
         // Insert choices
         foreach ($choice_texts as $idx => $choice_text) {
@@ -144,7 +298,7 @@ if ($act == 'update_question') {
                     // Insert new choice
                     q("INSERT INTO choices (question_id, text, is_correct) VALUES (?, ?, ?)", 
                       [$question_id, $ctext, $is_correct]);
-                    $existing_ids[] = lastInsertId();
+                                        $existing_ids[] = (int)pdo()->lastInsertId();
                 }
             }
         }
