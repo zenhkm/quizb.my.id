@@ -7293,6 +7293,11 @@ HTML;
                 messageContainer.scrollTop = messageContainer.scrollHeight;
             }
 
+          } // end if (chatForm && chatTextarea && messageContainer)
+
+        }, 0);
+        </script>
+
 JS;
 
 }
