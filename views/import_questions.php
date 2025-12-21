@@ -281,21 +281,34 @@ function loadSubthemes() {
         return;
     }
     
+    // Show loading
+    subthemeSelect.innerHTML = '<option value="">Loading...</option>';
+    
     // Fetch subthemes via AJAX
     fetch('?page=import_questions&action=get_subthemes&theme_id=' + themeId)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             subthemeSelect.innerHTML = '<option value="">-- Pilih Subtema --</option>';
-            data.forEach(sub => {
-                const option = document.createElement('option');
-                option.value = sub.id;
-                option.textContent = sub.name;
-                subthemeSelect.appendChild(option);
-            });
+            if (data && data.length > 0) {
+                data.forEach(sub => {
+                    const option = document.createElement('option');
+                    option.value = sub.id;
+                    option.textContent = sub.name;
+                    subthemeSelect.appendChild(option);
+                });
+            } else {
+                subthemeSelect.innerHTML = '<option value="">-- Tidak ada subtema --</option>';
+            }
         })
         .catch(error => {
             console.error('Error loading subthemes:', error);
-            subthemeSelect.innerHTML = '<option value="">-- Error loading subtemas --</option>';
+            alert('Gagal memuat subtema. Silakan refresh halaman dan coba lagi.');
+            subthemeSelect.innerHTML = '<option value="">-- Error loading subtema --</option>';
         });
 }
 

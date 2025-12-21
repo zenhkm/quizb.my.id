@@ -4,6 +4,25 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+$act = $_GET['action'] ?? $_POST['act'] ?? '';
+
+// ============================================================
+// AJAX: GET SUBTHEMES BY THEME - HARUS PALING AWAL
+// ============================================================
+if ($act === 'get_subthemes' && isset($_GET['theme_id'])) {
+    if (!is_pengajar() && !is_admin()) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Unauthorized']);
+        exit;
+    }
+    
+    header('Content-Type: application/json');
+    $theme_id = (int)$_GET['theme_id'];
+    $subthemes = q("SELECT id, name FROM subthemes WHERE theme_id = ? ORDER BY name", [$theme_id])->fetchAll();
+    echo json_encode($subthemes);
+    exit;
+}
+
 // Cek apakah PhpSpreadsheet tersedia
 if (!class_exists('PhpOffice\PhpSpreadsheet\Spreadsheet')) {
     if (!is_pengajar() && !is_admin()) {
@@ -22,8 +41,6 @@ if (!class_exists('PhpOffice\PhpSpreadsheet\Spreadsheet')) {
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-
-$act = $_GET['action'] ?? $_POST['act'] ?? '';
 
 // ============================================================
 // DOWNLOAD TEMPLATE EXCEL - HARUS PALING AWAL SEBELUM OUTPUT
@@ -134,17 +151,6 @@ if ($act === 'download_template') {
 if (!is_pengajar() && !is_admin()) {
     echo '<div class="alert alert-danger">Akses admin/pengajar diperlukan.</div>';
     return;
-}
-
-// ============================================================
-// AJAX: GET SUBTHEMES BY THEME
-// ============================================================
-if ($act === 'get_subthemes' && isset($_GET['theme_id'])) {
-    header('Content-Type: application/json');
-    $theme_id = (int)$_GET['theme_id'];
-    $subthemes = q("SELECT id, name FROM subthemes WHERE theme_id = ? ORDER BY name", [$theme_id])->fetchAll();
-    echo json_encode($subthemes);
-    exit;
 }
 
 // ============================================================

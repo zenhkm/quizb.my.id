@@ -959,6 +959,12 @@ if ($page === 'import_questions' && $action === 'download_template') {
     exit; // Stop eksekusi, tidak perlu html_head
 }
 
+if ($page === 'import_questions' && $action === 'get_subthemes') {
+    // Handle AJAX request untuk get subthemes
+    require 'actions/import_questions.php';
+    exit; // Stop eksekusi, tidak perlu html_head
+}
+
 // ===============================================
 // VIEW: HEAD
 // ===============================================
