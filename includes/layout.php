@@ -1100,6 +1100,7 @@ HTML;
     echo '    <li class="nav-item"><a class="nav-link" href="?page=kelola_user">Kelola User</a></li>';
     echo '    <li class="nav-item"><a class="nav-link" href="?page=broadcast">Broadcast</a></li>';
     echo '    <li class="nav-item"><a class="nav-link" href="?page=qmanage">Kelola Soal (CRUD)</a></li>';
+    echo '    <li class="nav-item"><a class="nav-link" href="?page=import_questions">Import Soal</a></li>';
 
     // ▼▼▼ TAMBAHKAN BLOK BARU INI ▼▼▼
     // Tampilkan menu ini HANYA jika pengguna adalah Pengajar
@@ -1121,6 +1122,7 @@ if (($_SESSION['user']['role'] ?? '') === 'pengajar') {
       // Tampilkan menu untuk Pengajar
       echo '<li class="nav-item"><a class="nav-link" href="?page=kelola_institusi">Kelola Institusi & Kelas</a></li>';
       echo '<li class="nav-item"><a class="nav-link" href="?page=teacher_crud">Bank Soal Saya</a></li>';
+      echo '<li class="nav-item"><a class="nav-link" href="?page=import_questions">Import Soal</a></li>';
     } elseif ($user_role === 'pelajar') {
       // ▼▼▼ INI MENU BARU UNTUK SISWA ▼▼▼
       echo '<li class="nav-item"><a class="nav-link" href="?page=student_tasks">Daftar Tugas</a></li>';

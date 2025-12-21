@@ -1013,6 +1013,9 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
   case 'qmanage':
     require 'actions/qmanage.php';
     break;
+  case 'import_questions':
+    require 'actions/import_questions.php';
+    break;
   case 'teacher_crud':
     // handled earlier via direct call (see above); avoid falling through to default 404
     break;
