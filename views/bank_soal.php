@@ -357,6 +357,55 @@ $message = $_GET['msg'] ?? '';
                     <button class="btn btn-primary btn-sm" onclick="showAddQuestionModal()">+ Tambah Soal</button>
                 </div>
 
+                <?php if ($edit_question && $question_detail): ?>
+                <!-- Form Edit Soal -->
+                <div class="card mb-3 border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <strong>Edit Soal #<?= $edit_question ?></strong>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="?page=bank_soal">
+                            <input type="hidden" name="act" value="update_question">
+                            <input type="hidden" name="question_id" value="<?= $edit_question ?>">
+                            <input type="hidden" name="title_id" value="<?= $selected_title ?>">
+                            <input type="hidden" name="return_url" value="?page=bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $selected_title ?>">
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Pertanyaan</label>
+                                <textarea name="text" class="form-control" rows="3" required><?= h($question_detail['text']) ?></textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Pilihan Jawaban</label>
+                                <?php 
+                                $letters = ['A', 'B', 'C', 'D', 'E'];
+                                foreach ($choices as $idx => $choice): 
+                                ?>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text"><?= $letters[$idx] ?></span>
+                                    <input type="hidden" name="cid[]" value="<?= $choice['id'] ?>">
+                                    <input type="text" name="ctext[]" class="form-control" value="<?= h($choice['text']) ?>" required>
+                                    <div class="input-group-text">
+                                        <input type="radio" name="correct_index" value="<?= $idx + 1 ?>" <?= $choice['is_correct'] ? 'checked' : '' ?>> Benar
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Penjelasan (Opsional)</label>
+                                <textarea name="explanation" class="form-control" rows="2"><?= h($question_detail['explanation'] ?? '') ?></textarea>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">Update Soal</button>
+                                <a href="?page=bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $selected_title ?>" class="btn btn-secondary">Batal</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <?php if (empty($questions)): ?>
                 <div class="alert alert-info">Belum ada soal. Klik "Tambah Soal" untuk mulai menambahkan.</div>
                 <?php else: ?>
@@ -365,10 +414,21 @@ $message = $_GET['msg'] ?? '';
                         <div class="d-flex align-items-start">
                             <span class="question-number"><?= $idx + 1 ?></span>
                             <div class="flex-grow-1">
-                                <p class="mb-2"><?= h($q['text']) ?></p>
-                                <?php if ($q['choice_count'] > 0): ?>
+                                <p class="mb-2"><strong><?= h($q['text']) ?></strong></p>
+                                <?php 
+                                // Load choices untuk setiap soal
+                                $q_choices = q("SELECT * FROM choices WHERE question_id = ? ORDER BY id", [$q['id']])->fetchAll();
+                                if (!empty($q_choices)):
+                                ?>
                                 <div class="mb-2">
-                                    <small class="text-muted"><?= $q['choice_count'] ?> pilihan</small>
+                                    <?php 
+                                    $letters = ['A', 'B', 'C', 'D', 'E'];
+                                    foreach ($q_choices as $cidx => $ch): 
+                                    ?>
+                                    <span class="choice-badge <?= $ch['is_correct'] ? 'correct' : '' ?>">
+                                        <?= $letters[$cidx] ?>. <?= h($ch['text']) ?>
+                                    </span>
+                                    <?php endforeach; ?>
                                 </div>
                                 <?php endif; ?>
                                 <?php if ($q['explanation']): ?>
@@ -379,8 +439,12 @@ $message = $_GET['msg'] ?? '';
                                 <?php endif; ?>
                             </div>
                             <div class="btn-group btn-group-sm">
-                                <a href="?page=bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $selected_title ?>&edit_q=<?= $q['id'] ?>" class="btn btn-outline-primary">Edit</a>
-                                <button class="btn btn-outline-danger" onclick="deleteQuestion(<?= $q['id'] ?>)">Hapus</button>
+                                <a href="?page=bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $selected_title ?>&edit_q=<?= $q['id'] ?>" class="btn btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                                <button class="btn btn-outline-danger" onclick="deleteQuestion(<?= $q['id'] ?>)">
+                                    <i class="bi bi-trash"></i> Hapus
+                                </button>
                             </div>
                         </div>
                     </div>

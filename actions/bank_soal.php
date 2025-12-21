@@ -148,6 +148,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect($return_url);
     }
     
+    if ($act === 'update_question') {
+        $qid = (int)($_POST['question_id'] ?? 0);
+        $text = trim($_POST['text'] ?? '');
+        $exp = trim($_POST['explanation'] ?? '');
+        $return_url = $_POST['return_url'] ?? '?page=bank_soal';
+        
+        if ($qid > 0 && $text !== '') {
+            // Update question
+            q("UPDATE questions SET text=?, explanation=?, updated_at=? WHERE id=?", 
+              [$text, ($exp ?: null), now(), $qid]);
+            
+            // Update choices
+            $cidArr = array_map('intval', $_POST['cid'] ?? []);
+            $ctextArr = array_map('trim', $_POST['ctext'] ?? []);
+            $correct_index = (int)($_POST['correct_index'] ?? 1);
+            
+            // Sync choices
+            $pairs = [];
+            for ($i = 0; $i < count($ctextArr); $i++) {
+                if ($ctextArr[$i] !== '') {
+                    $pairs[] = ['id' => $cidArr[$i] ?? 0, 'text' => $ctextArr[$i]];
+                }
+            }
+            
+            $n = count($pairs);
+            if ($n >= 2 && $n <= 5) {
+                $oldIds = q("SELECT id FROM choices WHERE question_id=? ORDER BY id", [$qid])->fetchAll(PDO::FETCH_COLUMN);
+                $newIds = [];
+                
+                foreach ($pairs as $p) {
+                    if ($p['id'] > 0) {
+                        q("UPDATE choices SET text=? WHERE id=?", [$p['text'], $p['id']]);
+                        $newIds[] = (int)$p['id'];
+                    } else {
+                        q("INSERT INTO choices (question_id, text, is_correct) VALUES (?,?,0)", [$qid, $p['text']]);
+                        $newIds[] = (int)pdo()->lastInsertId();
+                    }
+                }
+                
+                // Delete removed choices
+                foreach ($oldIds as $oid) {
+                    if (!in_array($oid, $newIds, true)) {
+                        q("DELETE FROM choices WHERE id=?", [$oid]);
+                    }
+                }
+                
+                // Set correct answer
+                $correct_choice_id = $newIds[$correct_index - 1];
+                q("UPDATE choices SET is_correct = CASE WHEN id=? THEN 1 ELSE 0 END WHERE question_id=?", 
+                  [$correct_choice_id, $qid]);
+            }
+            
+            redirect($return_url . '&success=1&msg=' . urlencode('Soal berhasil diupdate'));
+        }
+        redirect($return_url);
+    }
+    
     if ($act === 'delete_question') {
         $qid = (int)($_POST['question_id'] ?? 0);
         $return_url = $_POST['return_url'] ?? '?page=bank_soal';
