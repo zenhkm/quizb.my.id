@@ -1193,6 +1193,8 @@ if (($_SESSION['user']['role'] ?? '') === 'pengajar') {
     .navbar .nav-link:hover, .navbar .nav-link:focus{ color: var(--text-1); background: var(--surface-2); }
     .navbar .nav-link.active, .navbar .nav-link[aria-current="page"]{ color: var(--brand-contrast); background: var(--brand); }
     .navbar .navbar-brand.brand{ letter-spacing: .2px; }
+    /* Pastikan dropdown akun selalu muncul di atas elemen sticky pada halaman tertentu (mis. Pesan) */
+    .navbar .dropdown-menu{ z-index: 1050; }
   </style>';
 
   // ===================================================================
