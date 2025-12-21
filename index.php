@@ -992,13 +992,30 @@ if ($page === 'play' && isset($_GET['mode']) && isset($_GET['i'])) {
     // User mencoba akses soal langsung dengan mode dan index
     // Cek apakah ada session aktif
     if (!isset($_SESSION['quiz']) || !isset($_SESSION['quiz']['session_id'])) {
+        // TEMPORARY DEBUG
+        error_log("REDIRECT: No session found for play page with mode and i. Redirecting to mode selection.");
+        error_log("Title ID: " . ($_GET['title_id'] ?? 'none'));
+        error_log("Session quiz: " . print_r($_SESSION['quiz'] ?? 'none', true));
+        
         // Tidak ada session, redirect ke pemilihan mode (hapus mode dan i)
         $title_id = (int)($_GET['title_id'] ?? 0);
-        if ($title_id > 0) {
-            redirect("?page=play&title_id=$title_id");
-        } else {
-            redirect("?page=home");
+        
+        // Clean output buffer sebelum redirect
+        while (ob_get_level() > 0) {
+            ob_end_clean();
         }
+        
+        if ($title_id > 0) {
+            header("Location: ?page=play&title_id=$title_id");
+            exit;
+        } else {
+            header("Location: ?page=home");
+            exit;
+        }
+    } else {
+        // TEMPORARY DEBUG - session exists
+        error_log("SESSION EXISTS: Continuing with play page.");
+        error_log("Session data: " . print_r($_SESSION['quiz'], true));
     }
 }
 
