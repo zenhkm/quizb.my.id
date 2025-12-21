@@ -6338,7 +6338,7 @@ function view_profile()
           LEFT JOIN quiz_titles qt ON qt.id = r.title_id
           WHERE r.score = 100
           ORDER BY r.created_at DESC
-          LIMIT 20000")->fetchAll();
+          LIMIT 500")->fetchAll();
     $participantsCount_admin = (is_array($recent_admin_view) || $recent_admin_view instanceof Countable) ? count($recent_admin_view) : 0;
     echo   '<div class="d-flex align-items-center justify-content-between">';
     echo     '<h5 class="mb-2">Riwayat Peserta Terbaru (Admin View) <span class="badge bg-secondary" id="admin-tbl-participants-count">' . $participantsCount_admin . '</span></h5>';
