@@ -1035,6 +1035,9 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
   case 'import_questions':
     require 'actions/import_questions.php';
     break;
+  case 'bank_soal':
+    require 'actions/bank_soal.php';
+    break;
   case 'teacher_crud':
     // handled earlier via direct call (see above); avoid falling through to default 404
     break;

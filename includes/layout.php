@@ -1099,7 +1099,7 @@ HTML;
     echo '    <li class="nav-item"><a class="nav-link" href="?page=admin">Backend</a></li>';
     echo '    <li class="nav-item"><a class="nav-link" href="?page=kelola_user">Kelola User</a></li>';
     echo '    <li class="nav-item"><a class="nav-link" href="?page=broadcast">Broadcast</a></li>';
-    echo '    <li class="nav-item"><a class="nav-link" href="?page=qmanage">Kelola Soal (CRUD)</a></li>';
+    echo '    <li class="nav-item"><a class="nav-link" href="?page=bank_soal">Bank Soal</a></li>';
     echo '    <li class="nav-item"><a class="nav-link" href="?page=import_questions">Import Soal</a></li>';
 
     // ▼▼▼ TAMBAHKAN BLOK BARU INI ▼▼▼
@@ -1110,7 +1110,6 @@ if (($_SESSION['user']['role'] ?? '') === 'pengajar') {
     }
     // ▲▲▲ AKHIR BLOK BARU ▲▲▲
 
-    echo '    <li class="nav-item"><a class="nav-link" href="?page=crud">CRUD Bank Soal</a></li>';
 } else if ($u) {
     // Menu yang tampil untuk semua user login (non-admin)
     echo '    <li class="nav-item"><a class="nav-link" href="?page=challenges">Data Challenge</a></li>';
