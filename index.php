@@ -990,32 +990,39 @@ if ($page === 'import_questions' && $action === 'get_subthemes') {
 // ===============================================
 if ($page === 'play' && isset($_GET['mode']) && isset($_GET['i'])) {
     // User mencoba akses soal langsung dengan mode dan index
-    // Cek apakah ada session aktif
-    if (!isset($_SESSION['quiz']) || !isset($_SESSION['quiz']['session_id'])) {
+    $title_id_url = (int)($_GET['title_id'] ?? 0);
+    
+    // Cek apakah ada session aktif DAN untuk title yang sama
+    $has_valid_session = isset($_SESSION['quiz']) 
+                      && isset($_SESSION['quiz']['session_id'])
+                      && isset($_SESSION['quiz']['title_id'])
+                      && (int)$_SESSION['quiz']['title_id'] === $title_id_url;
+    
+    if (!$has_valid_session) {
         // TEMPORARY DEBUG
-        error_log("REDIRECT: No session found for play page with mode and i. Redirecting to mode selection.");
-        error_log("Title ID: " . ($_GET['title_id'] ?? 'none'));
-        error_log("Session quiz: " . print_r($_SESSION['quiz'] ?? 'none', true));
-        
-        // Tidak ada session, redirect ke pemilihan mode (hapus mode dan i)
-        $title_id = (int)($_GET['title_id'] ?? 0);
+        error_log("REDIRECT: Invalid session for title $title_id_url");
+        if (isset($_SESSION['quiz']['title_id'])) {
+            error_log("Session title: " . $_SESSION['quiz']['title_id']);
+            // Clear session lama karena berbeda title
+            unset($_SESSION['quiz']);
+        }
         
         // Clean output buffer sebelum redirect
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
         
-        if ($title_id > 0) {
-            header("Location: ?page=play&title_id=$title_id");
+        // Redirect ke pemilihan mode untuk title yang benar
+        if ($title_id_url > 0) {
+            header("Location: ?page=play&title_id=$title_id_url");
             exit;
         } else {
             header("Location: ?page=home");
             exit;
         }
     } else {
-        // TEMPORARY DEBUG - session exists
-        error_log("SESSION EXISTS: Continuing with play page.");
-        error_log("Session data: " . print_r($_SESSION['quiz'], true));
+        // TEMPORARY DEBUG - session exists and valid
+        error_log("SESSION VALID: title_id matches, continuing with play page.");
     }
 }
 
