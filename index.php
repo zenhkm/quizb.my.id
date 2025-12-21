@@ -986,6 +986,23 @@ if ($page === 'import_questions' && $action === 'get_subthemes') {
 }
 
 // ===============================================
+// EARLY GUARD: Play page without session
+// ===============================================
+if ($page === 'play' && isset($_GET['mode']) && isset($_GET['i'])) {
+    // User mencoba akses soal langsung dengan mode dan index
+    // Cek apakah ada session aktif
+    if (!isset($_SESSION['quiz']) || !isset($_SESSION['quiz']['session_id'])) {
+        // Tidak ada session, redirect ke pemilihan mode (hapus mode dan i)
+        $title_id = (int)($_GET['title_id'] ?? 0);
+        if ($title_id > 0) {
+            redirect("?page=play&title_id=$title_id");
+        } else {
+            redirect("?page=home");
+        }
+    }
+}
+
+// ===============================================
 // VIEW: HEAD
 // ===============================================
 html_head();

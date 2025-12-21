@@ -88,16 +88,14 @@ if (!$mode && $should_show_mode_selection) {
     return;
 }
 
-// Jika ada mode tapi tidak ada session, redirect ke mode selection (hapus parameter i dan mode)
-if ($mode && (!isset($_SESSION['quiz']) || !isset($_SESSION['quiz']['session_id']))) {
-    // User mengakses langsung dengan mode tanpa membuat session terlebih dahulu
-    // Redirect ke halaman pemilihan mode untuk memulai sesi baru (hapus parameter mode dan i)
-    $clean_url = "?page=play&title_id=$title_id";
-    header("Location: $clean_url");
-    exit;
+// Jika sampai sini dan tidak ada session, ada yang salah (seharusnya sudah ditangani oleh guard di index.php)
+if (!isset($_SESSION['quiz']) || !isset($_SESSION['quiz']['session_id'])) {
+    echo '<div class="container mt-4">';
+    echo '<div class="alert alert-danger">Terjadi kesalahan. Sesi kuis tidak valid.</div>';
+    echo '<a href="?page=play&title_id=' . $title_id . '" class="btn btn-primary">Mulai Ulang</a>';
+    echo '</div>';
+    return;
 }
-
-// Jika tidak ada mode dan tidak ada session, sudah ditangani oleh mode selection di atas
 if (!isset($_SESSION['quiz']) || !isset($_SESSION['quiz']['session_id'])) {
     // Jika sampai sini berarti ada masalah, redirect paksa ke home
     header("Location: ?page=home");
