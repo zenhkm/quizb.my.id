@@ -15,9 +15,7 @@ $CONFIG = [
   'GOOGLE_CLIENT_ID' => '346372041145-v0htu4n3fmetpssmnkhs656ckhfp8ch6.apps.googleusercontent.com',
   'SUPER_ADMIN_EMAIL' => 'zenhkm@gmail.com',
   'SESSION_NAME' => 'quizb_sess',
-  
-  'VAPID_PUBLIC_KEY' => 'BMkqICzA0e7xrPWB0_6k5q25ngROfgtMKq4b5RAz8Vk0VGCTeGOd6wqq-AyQ8Z48uqkRd1JL1MJEbb5wRW2L8As',
-  'VAPID_PRIVATE_KEY' => 'i3-CDhb33SCXfDn0IBBsDO4wkRA11hczdHbfYq5A_d4',
+
 ];
 
 // ===============================================

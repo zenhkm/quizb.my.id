@@ -1,5 +1,5 @@
 // Nama cache unik. Ubah nomor versi jika Anda memperbarui aset statis.
-const CACHE_NAME = 'quizb-cache-v3';
+const CACHE_NAME = 'quizb-cache-v4';
 
 // Daftar aset statis yang aman untuk di-cache.
 // PENTING: Jangan masukkan '/' atau 'index.php' ke dalam daftar ini.
@@ -89,20 +89,3 @@ if (url.pathname.endsWith('.php')) {
 });
 
 
-// ▼▼▼ TAMBAHKAN BLOK BARU INI DI AKHIR FILE ▼▼▼
-
-// Event 'push': Menerima notifikasi dari server dan menampilkannya.
-self.addEventListener('push', e => {
-    const data = e.data.json();
-    console.log('SW: Push Notification diterima!', data);
-
-    const title = data.title || 'QuizB';
-    const options = {
-        body: data.body || 'Ada notifikasi baru untukmu!',
-        icon: '/favicon.png', // Ikon yang muncul di notifikasi
-        badge: '/favicon.png' // Ikon kecil di status bar (Android)
-    };
-
-    // Menampilkan notifikasi ke pengguna
-    e.waitUntil(self.registration.showNotification(title, options));
-});

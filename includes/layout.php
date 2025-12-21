@@ -1712,22 +1712,5 @@ JS;
   // ===================================================================
 
 
-// ▼▼▼ TAMBAHKAN BLOK SCRIPT INI TEPAT SEBELUM </body></html> ▼▼▼
-  echo '<script src="/main-push.js"></script>';
-  echo "<script>
-      // Panggil fungsi inisialisasi dari main-push.js setelah halaman dimuat
-      window.addEventListener('load', () => {
-          const VAPID_PUBLIC_KEY = '" . ($CONFIG['VAPID_PUBLIC_KEY'] ?? '') . "';
-          if (VAPID_PUBLIC_KEY) {
-              initializeUI(VAPID_PUBLIC_KEY);
-          } else {
-              console.error('VAPID Public Key is not set in PHP config.');
-          }
-      });
-  </script>";
-  // ▲▲▲ AKHIR BLOK SCRIPT ▲▲▲
-
-
-
   echo '</body></html>';
 }

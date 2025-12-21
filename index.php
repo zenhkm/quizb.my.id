@@ -556,17 +556,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'handle_delete_conversation') 
 if (isset($_GET['action']) && $_GET['action'] === 'api_get_conversations') {
   api_get_conversations(); // Fungsi baru untuk API infinite scroll
 }
-if (isset($_GET['action']) && $_GET['action'] === 'save_subscription' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-  handle_save_subscription();
-}
 if (isset($_GET['action']) && $_GET['action'] === 'delete_message' && $_SERVER['REQUEST_METHOD'] === 'POST') {
   handle_delete_message(); // Fungsi baru untuk hapus pesan
 }
 if (isset($_GET['action']) && $_GET['action'] === 'api_search_users') {
   api_search_users(); // Fungsi baru untuk API pencarian user
-}
-if (isset($_GET['action']) && $_GET['action'] === 'send_test_push') {
-    handle_send_test_push();
 }
 if (isset($_GET['action']) && $_GET['action'] === 'edit_kelas' && $_SERVER['REQUEST_METHOD'] === 'POST') handle_edit_kelas();
 if (isset($_GET['action']) && $_GET['action'] === 'delete_kelas' && $_SERVER['REQUEST_METHOD'] === 'POST') handle_delete_kelas();
@@ -5182,65 +5176,7 @@ function handle_save_welcome()
  * Mengirim notifikasi percobaan ke semua pengguna yang terdaftar.
  * HANYA BISA DIAKSES OLEH ADMIN.
  */
-function handle_send_test_push() {
-    global $CONFIG; // Ambil konfigurasi global
-
-    // Keamanan: Hanya admin yang boleh menjalankan ini
-    if (!is_admin()) {
-        echo "Akses ditolak. Halaman ini hanya untuk administrator.";
-        exit;
-    }
-
-    // 1. Inisialisasi library WebPush dengan kunci dari $CONFIG
-    $webPush = new \Minishlink\WebPush\WebPush([
-        'VAPID' => [
-            'subject' => 'https://quizb.my.id',
-            'publicKey' => $CONFIG['VAPID_PUBLIC_KEY'],
-            'privateKey' => $CONFIG['VAPID_PRIVATE_KEY'],
-        ],
-    ]);
-
-    // 2. Siapkan payload (data notifikasi)
-    $payload = json_encode([
-        'title' => 'Percobaan Notifikasi QuizB!',
-        'body' => 'Jika Anda menerima ini, artinya web push berhasil. 🎉',
-    ]);
-
-    // 3. Ambil semua subscription dari database
-    $subscriptions = q("SELECT * FROM push_subscriptions")->fetchAll();
-    if (empty($subscriptions)) {
-        echo "Tidak ada pengguna yang berlangganan notifikasi.";
-        exit;
-    }
-
-    // 4. Masukkan semua notifikasi ke dalam antrean
-    foreach ($subscriptions as $sub) {
-        $subscription_object = \Minishlink\WebPush\Subscription::create([
-            'endpoint' => $sub['endpoint'],
-            'publicKey' => $sub['p256dh'],
-            'authToken' => $sub['auth'],
-        ]);
-        $webPush->queueNotification($subscription_object, $payload);
-    }
-
-    // 5. Kirim semua notifikasi dalam antrean dan tampilkan laporannya
-    echo "<h3>Mengirim Notifikasi...</h3><pre>";
-    foreach ($webPush->flush() as $report) {
-        $endpoint = $report->getRequest()->getUri()->__toString();
-        if ($report->isSuccess()) {
-            echo "[OK] Notifikasi berhasil dikirim ke: ...".substr($endpoint, -20)."\n";
-        } else {
-            echo "[GAGAL] Gagal mengirim ke: ...".substr($endpoint, -20)." | Alasan: {$report->getReason()}\n";
-            // Jika subscription sudah tidak valid/kedaluwarsa, hapus dari database
-            if ($report->isSubscriptionExpired()) {
-                q("DELETE FROM push_subscriptions WHERE endpoint = ?", [$endpoint]);
-                echo "[INFO] Subscription yang kedaluwarsa telah dihapus dari database.\n";
-            }
-        }
-    }
-    echo "</pre><p>Selesai. " . count($subscriptions) . " notifikasi telah diproses.</p>";
-    exit;
-}
+/* Push notifications removed */
 
 /**
  * Memproses form dari halaman broadcaster dan mengirim notifikasi ke target.
@@ -9077,38 +9013,7 @@ function handle_save_student_class()
 /**
  * Menerima dan menyimpan subscription object dari browser pengguna.
  */
-function handle_save_subscription() {
-    header('Content-Type: application/json');
-
-    // 1. Ambil data JSON dari request body
-    $json = file_get_contents('php://input');
-    $data = json_decode($json, true);
-
-    // 2. Validasi data yang masuk
-    if (!isset($data['endpoint']) || !isset($data['keys']['p256dh']) || !isset($data['keys']['auth'])) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Invalid subscription object.']);
-        exit;
-    }
-
-    // 3. Ekstrak data
-    $endpoint = $data['endpoint'];
-    $p256dh = $data['keys']['p256dh'];
-    $auth = $data['keys']['auth'];
-    $user_id = uid(); // uid() akan mengembalikan NULL jika tidak login, ini sudah benar.
-
-    // 4. Simpan ke database menggunakan ON DUPLICATE KEY UPDATE.
-    // Ini akan mengupdate jika endpoint sudah ada, atau menambah baru jika belum.
-    q(
-        "INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
-         VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), p256dh = VALUES(p256dh), auth = VALUES(auth)",
-        [$user_id, $endpoint, $p256dh, $auth]
-    );
-
-    echo json_encode(['success' => true]);
-    exit; // Penting untuk menghentikan eksekusi agar tidak ada output lain
-}
+/* Push notifications removed */
 
 
 

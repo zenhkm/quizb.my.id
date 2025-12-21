@@ -1,6 +1,5 @@
 {
     "require": {
-        "minishlink/web-push": "^7.0",
         "phpmailer/phpmailer": "^7.0",
         "phpoffice/phpspreadsheet": "^1.29"
     }
