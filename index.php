@@ -1038,6 +1038,9 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
   case 'bank_soal':
     require 'actions/bank_soal.php';
     break;
+  case 'teacher_bank_soal':
+    require 'actions/teacher_bank_soal.php';
+    break;
   case 'teacher_crud':
     // handled earlier via direct call (see above); avoid falling through to default 404
     break;
@@ -1465,6 +1468,10 @@ function api_get_page_content()
     case 'teacher_qmanage':
       // Render teacher question management content for SPA/api_get_page_content
       require 'actions/teacher_qmanage.php';
+      break;
+    case 'teacher_bank_soal':
+      // Bank soal untuk pengajar
+      require 'views/teacher_bank_soal.php';
       break;
     /* ▼▼▼ TAMBAHKAN KASUS BARU UNTUK HALAMAN TUGAS INI ▼▼▼ */
     case 'student_tasks':

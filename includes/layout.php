@@ -1120,7 +1120,7 @@ if (($_SESSION['user']['role'] ?? '') === 'pengajar') {
     if ($user_role === 'pengajar') {
       // Tampilkan menu untuk Pengajar
       echo '<li class="nav-item"><a class="nav-link" href="?page=kelola_institusi">Kelola Institusi & Kelas</a></li>';
-      echo '<li class="nav-item"><a class="nav-link" href="?page=teacher_crud">Bank Soal Saya</a></li>';
+      echo '<li class="nav-item"><a class="nav-link" href="?page=teacher_bank_soal">Bank Soal Saya</a></li>';
       echo '<li class="nav-item"><a class="nav-link" href="?page=import_questions">Import Soal</a></li>';
     } elseif ($user_role === 'pelajar') {
       // ▼▼▼ INI MENU BARU UNTUK SISWA ▼▼▼
