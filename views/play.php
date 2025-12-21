@@ -104,7 +104,7 @@ $assignment_settings = $_SESSION['quiz']['assignment_settings'] ?? null;
 $timerSecs = $assignment_settings['timer_per_soal'] ?? user_timer_seconds();
 $examTimerMins = $assignment_settings['durasi_ujian'] ?? user_exam_timer_minutes();
 $mode_for_js = h($mode);
-$user_id_js = uid();
+$user_id_js = (int)(uid() ?? 0);
 
 echo <<<JS
 <script>

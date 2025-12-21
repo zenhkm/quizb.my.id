@@ -105,21 +105,14 @@ if (!isset($_SESSION['quiz']) || !isset($_SESSION['quiz']['session_id'])) {
 // Langsung gunakan session_id yang sudah ada dan valid.
 $sid = $_SESSION['quiz']['session_id'];
 
-error_log("PLAY.PHP: Fetching questions for session $sid");
-
 $qs = q("SELECT q.* FROM quiz_session_questions m
        JOIN questions q ON q.id = m.question_id
        WHERE m.session_id = ?
        ORDER BY m.sort_no", [$sid])->fetchAll();
 
-error_log("PLAY.PHP: Found " . count($qs) . " questions");
-
 $i = max(0, (int)($_GET['i'] ?? 0));
 
-error_log("PLAY.PHP: Question index i=$i, total questions=" . count($qs));
-
 if ($i >= count($qs) && count($qs) > 0) { // Tambahkan pengecekan count($qs) > 0
-  error_log("PLAY.PHP: Showing summary page");
   require 'actions/summary.php';
   require 'views/summary.php';
   if (isset($_SESSION['current_challenge_token'])) {
@@ -129,7 +122,6 @@ if ($i >= count($qs) && count($qs) > 0) { // Tambahkan pengecekan count($qs) > 0
 }
 
 if (count($qs) === 0) {
-    error_log("PLAY.PHP: ERROR - No questions found for session $sid");
     echo '<div class="container mt-4">';
     echo '<div class="alert alert-danger">Tidak ada soal untuk kuis ini.</div>';
     echo '<a href="?page=home" class="btn btn-primary">Kembali ke Beranda</a>';
@@ -137,12 +129,9 @@ if (count($qs) === 0) {
     return;
 }
 
-error_log("PLAY.PHP: Mode is '$mode', requiring views/play.php");
-
 if ($mode === 'instant' || $mode === 'end' || $mode === 'exam') {
     require 'views/play.php';
 } else {
-    error_log("PLAY.PHP: ERROR - Invalid mode '$mode'");
     echo '<div class="container mt-4">';
     echo '<div class="alert alert-danger">Mode kuis tidak valid.</div>';
     echo '<a href="?page=play&title_id=' . $title_id . '" class="btn btn-primary">Pilih Mode</a>';

@@ -999,10 +999,7 @@ if ($page === 'play' && isset($_GET['mode']) && isset($_GET['i'])) {
                       && (int)$_SESSION['quiz']['title_id'] === $title_id_url;
     
     if (!$has_valid_session) {
-        // TEMPORARY DEBUG
-        error_log("REDIRECT: Invalid session for title $title_id_url");
         if (isset($_SESSION['quiz']['title_id'])) {
-            error_log("Session title: " . $_SESSION['quiz']['title_id']);
             // Clear session lama karena berbeda title
             unset($_SESSION['quiz']);
         }
