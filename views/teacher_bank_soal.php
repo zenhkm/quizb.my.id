@@ -13,15 +13,36 @@ $selected_subtheme = (int)($_GET['subtheme_id'] ?? 0);
 $selected_title = (int)($_GET['title_id'] ?? 0);
 $edit_question = (int)($_GET['edit_q'] ?? 0);
 
-// Ambil data untuk panel - HANYA milik pengajar
-$themes = q("SELECT * FROM themes ORDER BY sort_order, name")->fetchAll();
+// Ambil data untuk panel - hanya tema/subtema yang punya judul milik pengajar
+// (agar tema/subtema yang hanya berisi konten admin tidak muncul)
+$themes = q(
+    "
+    SELECT DISTINCT t.*
+    FROM themes t
+    JOIN subthemes st ON st.theme_id = t.id
+    JOIN quiz_titles qt ON qt.subtheme_id = st.id
+    WHERE qt.owner_user_id = ?
+    ORDER BY t.sort_order, t.name
+    ",
+    [$user_id]
+)->fetchAll();
 $subthemes = [];
 $titles = [];
 $questions = [];
 $question_detail = null;
 
 if ($selected_theme) {
-    $subthemes = q("SELECT * FROM subthemes WHERE theme_id = ? ORDER BY name", [$selected_theme])->fetchAll();
+    $subthemes = q(
+        "
+        SELECT DISTINCT st.*
+        FROM subthemes st
+        JOIN quiz_titles qt ON qt.subtheme_id = st.id
+        WHERE st.theme_id = ?
+          AND qt.owner_user_id = ?
+        ORDER BY st.name
+        ",
+        [$selected_theme, $user_id]
+    )->fetchAll();
 }
 
 if ($selected_subtheme) {
@@ -53,7 +74,8 @@ if ($selected_title) {
         JOIN subthemes st ON st.id = qt.subtheme_id
         JOIN themes t ON t.id = st.theme_id
         WHERE qt.id = ?
-    ", [$selected_title])->fetch();
+          AND qt.owner_user_id = ?
+    ", [$selected_title, $user_id])->fetch();
 }
 
 if ($edit_question) {
@@ -67,7 +89,7 @@ $success = $_GET['success'] ?? '';
 $message = $_GET['msg'] ?? '';
 ?>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
 
 <style>
 .bank-soal-container {
@@ -254,8 +276,8 @@ $message = $_GET['msg'] ?? '';
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/>
                 </svg>
-                <p class="mb-0">Belum ada tema</p>
-                <small>Hubungi admin untuk menambah tema</small>
+                <p class="mb-0">Belum ada tema untuk konten Anda</p>
+                <small>Tambahkan judul/soal terlebih dahulu</small>
             </div>
             <?php else: ?>
                 <?php foreach ($themes as $theme): ?>
@@ -284,8 +306,8 @@ $message = $_GET['msg'] ?? '';
             </div>
             <?php elseif (empty($subthemes)): ?>
             <div class="empty-state">
-                <p class="mb-0">Belum ada subtema</p>
-                <small>Hubungi admin untuk menambah subtema</small>
+                <p class="mb-0">Belum ada subtema untuk konten Anda</p>
+                <small>Pilih tema lain atau tambahkan judul pada subtema</small>
             </div>
             <?php else: ?>
                 <?php foreach ($subthemes as $sub): ?>
@@ -332,10 +354,15 @@ $message = $_GET['msg'] ?? '';
                             <span><?= h($title['title']) ?></span>
                             <div onclick="event.stopPropagation();" style="display: flex; gap: 4px;">
                                 <button class="btn btn-sm btn-outline-primary" onclick="editTitle(<?= $title['id'] ?>, '<?= h($title['title']) ?>', <?= $selected_subtheme ?>)" title="Edit">
-                                    <i class="bi bi-pencil"></i>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2L2 11.207V13h1.793L13 3.793z"/>
+                                    </svg>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteTitle(<?= $title['id'] ?>)" title="Hapus">
-                                    <i class="bi bi-trash"></i>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0A.5.5 0 0 1 8.5 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                    </svg>
                                 </button>
                             </div>
                         </div>
@@ -432,10 +459,17 @@ $message = $_GET['msg'] ?? '';
                             </div>
                             <div class="btn-group btn-group-sm">
                                 <a href="?page=teacher_bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $selected_title ?>&edit_q=<?= $q['id'] ?>" class="btn btn-outline-primary">
-                                    <i class="bi bi-pencil"></i> Edit
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" class="me-1">
+                                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2L2 11.207V13h1.793L13 3.793z"/>
+                                    </svg>
+                                    Edit
                                 </a>
                                 <button class="btn btn-outline-danger" onclick="deleteQuestion(<?= $q['id'] ?>)">
-                                    <i class="bi bi-trash"></i> Hapus
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" class="me-1">
+                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0A.5.5 0 0 1 8.5 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                    </svg>
+                                    Hapus
                                 </button>
                             </div>
                         </div>
