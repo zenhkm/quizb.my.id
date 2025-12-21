@@ -1039,7 +1039,12 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
     require 'actions/bank_soal.php';
     break;
   case 'teacher_bank_soal':
-    require 'actions/teacher_bank_soal.php';
+    // Process POST actions first
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+      require 'actions/teacher_bank_soal.php';
+    } else {
+      require 'views/teacher_bank_soal.php';
+    }
     break;
   case 'teacher_crud':
     // handled earlier via direct call (see above); avoid falling through to default 404
