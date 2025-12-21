@@ -625,14 +625,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   </style>';
 
   // Hide header/footer/menu during active play session (all modes)
-  $is_play_active = (($_GET['page'] ?? '') === 'play') && isset($_SESSION['quiz']['session_id']);
-  if ($is_play_active) {
-    echo '<style>
-      .navbar, .mobile-nav-footer, footer.desktop-footer { display: none !important; }
-      body { padding-top: 0 !important; padding-bottom: 0 !important; }
-      #main-content-container { margin-top: 0 !important; }
-    </style>';
-  }
+  // NOTE: Must be togglable for SPA navigation (mobile footer issue after leaving summary).
+  echo '<style>
+    body.play-active .navbar,
+    body.play-active .mobile-nav-footer,
+    body.play-active footer.desktop-footer { display: none !important; }
+    body.play-active { padding-top: 0 !important; padding-bottom: 0 !important; }
+    body.play-active #main-content-container { margin-top: 0 !important; }
+  </style>';
 
   /* ===== CSS BARU UNTUK FOOTER MOBILE ===== */
   echo '<style>
@@ -1046,8 +1046,12 @@ JS;
   $backendPages = ['crud','qmanage','teacher_crud','teacher_qmanage','admin'];
   // Anggap juga halaman profile sebagai backend jika yang melihat adalah admin
   $isBackend = in_array($page, $backendPages, true) || ($page === 'profile' && is_admin());
-  $bodyClass = $isBackend ? ' class="backend"' : '';
-  echo '</head><body' . $bodyClass . '>';
+  $is_play_active = ($page === 'play') && isset($_SESSION['quiz']['session_id']);
+  $bodyClasses = [];
+  if ($isBackend) $bodyClasses[] = 'backend';
+  if ($is_play_active) $bodyClasses[] = 'play-active';
+  $bodyAttrClass = $bodyClasses ? (' class="' . implode(' ', $bodyClasses) . '"') : '';
+  echo '</head><body' . $bodyAttrClass . ' data-page="' . h($page) . '">';
 
   // ===================================================================
   // ▼▼▼ 2. LETAKKAN BLOK HTML INI TEPAT SETELAH echo '</head><body>'; ▼▼▼
@@ -1599,7 +1603,14 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
       }
 
       // INI ADALAH FUNGSI loadPage YANG SUDAH DIPERBAIKI TOTAL
-      async function loadPage(page, pushState = true) {
+        function syncChromeVisibility(page){
+          // If the loaded content contains the quiz app container, treat as an active play UI.
+          const isPlayActive = !!(mainContent && mainContent.querySelector('#quiz-app-container'));
+          document.body.classList.toggle('play-active', isPlayActive);
+          document.body.dataset.page = page;
+        }
+
+        async function loadPage(page, pushState = true) {
           if (!mainContent) return;
 
           // Tampilkan loader kustom kita
@@ -1625,6 +1636,9 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
               
               const html = await response.text();
               mainContent.innerHTML = html;
+
+              // Keep header/footer state consistent across SPA transitions.
+              syncChromeVisibility(page);
                               
               if (typeof renderAllGoogleButtons === 'function') renderAllGoogleButtons();
               if (typeof executeScripts === 'function') executeScripts(mainContent);
@@ -1686,6 +1700,8 @@ $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill
 
       const initialPage = new URLSearchParams(window.location.search).get('page') || 'home';
       history.replaceState({ page: initialPage }, '', window.location.href);
+      // Ensure initial chrome state matches initial content.
+      syncChromeVisibility(initialPage);
         // Initial badges update on first load (SPA)
         updateBadgesViaAPI();
   });
