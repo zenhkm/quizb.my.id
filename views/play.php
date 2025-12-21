@@ -42,15 +42,11 @@ echo <<<'CSS'
     }
     .quiz-choice-item:disabled { opacity: .7; cursor: not-allowed; }
 
-    /* Header exam: multi-row, modern, tidak dipaksa 1 baris */
+    /* Header kuis: SELALU 2 baris (sesuai spec) */
     .exam-header {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        grid-template-areas:
-            "title title"
-            "left  right";
-        gap: .6rem .75rem;
-        align-items: center;
+        display: flex;
+        flex-direction: column;
+        gap: .6rem;
         margin-bottom: .75rem;
         position: sticky; top: 0; z-index: 2;
         background: var(--bs-body-bg);
@@ -59,18 +55,20 @@ echo <<<'CSS'
         border-radius: var(--bs-border-radius-xl);
         box-shadow: var(--bs-box-shadow-sm);
     }
-    .exam-header .title { grid-area: title; text-align: center; }
-    .exam-header .left { grid-area: left; justify-self: start; }
-    .exam-header .right {
-        grid-area: right;
-        justify-self: end;
+    .exam-header-row {
         display: flex;
-        flex-wrap: wrap;
-        gap: .5rem;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: space-between;
+        gap: .6rem;
     }
-    .exam-header .title h4 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
+    .exam-header-row.bottom {
+        flex-wrap: wrap;
+    }
+    .exam-title {
+        margin: 0;
+        font-weight: 700;
+        letter-spacing: -.01em;
+    }
     #exam-fs-btn.btn { white-space: nowrap; border-radius: 999px; }
 
     /* Header pills */
@@ -94,20 +92,27 @@ echo <<<'CSS'
         background: var(--bs-danger-bg-subtle);
         color: var(--bs-danger-text-emphasis);
     }
+
+    /* Baris 2: judul + waktu. Judul akan turun jika sempit */
+    #exam-title-text {
+        flex: 1 1 420px;
+        text-align: center;
+    }
+    #exam-timer-display {
+        flex: 0 0 auto;
+    }
     /* Smooth progress bar fill */
     .progress { height: 6px; border-radius: var(--radius-lg, .75rem); overflow: hidden; }
     .progress-bar { background: var(--brand, var(--bs-primary)); transition: width var(--transition-base, 180ms ease); }
     /* Responsive: jika layar kecil, biar wrap ke 2 baris tapi tetap rapi */
     @media (max-width: 576px) {
-        .exam-header {
-            grid-template-columns: 1fr;
-            grid-template-areas:
-                "title"
-                "left"
-                "right";
+        #exam-title-text {
+            flex-basis: 100%;
+            text-align: left;
         }
-        .exam-header .title { text-align: left; }
-        .exam-header .right { justify-self: start; justify-content: flex-start; }
+        .exam-header-row.bottom {
+            justify-content: flex-start;
+        }
     }
 </style>
 CSS;
@@ -213,16 +218,14 @@ echo <<<JS
         appContainer.innerHTML = `
             <div id="exam-shell" class="quiz-container">
                 <div class="exam-header">
-                                    <div class="title">
-                                        <h4 class="h5">\${escapeHTML(quizState.title)}</h4>
-                                    </div>
-                                    <div class="left">
+                                    <div class="exam-header-row top">
                                         <span id="exam-q-counter">Soal \${index + 1} dari \${totalQuestions}</span>
-                                    </div>
-                  <div class="right">
-                                        <span id="exam-timer-display">Sisa waktu: <b id="timerLabel">{$timerSecs}</b> detik</span>
                                         <button id="exam-fs-btn" type="button" class="btn btn-outline-secondary btn-sm" title="Layar Penuh">Layar Penuh</button>
-                  </div>
+                                    </div>
+                                    <div class="exam-header-row bottom">
+                                        <h4 id="exam-title-text" class="h5 exam-title">\${escapeHTML(quizState.title)}</h4>
+                                        <span id="exam-timer-display">Sisa waktu: <b id="timerLabel">{$timerSecs}</b> detik</span>
+                                    </div>
                 </div>
                 <div class="progress mb-3" style="height: 5px;"><div class="progress-bar" id="exam-progress-bar" style="width: \${((index + 1) / totalQuestions) * 100}%;"></div></div>
                 <div class="quiz-question-box"><h2 class="quiz-question-text">\${escapeHTML(question.text)}</h2></div>
@@ -308,15 +311,13 @@ echo <<<JS
 
             <div id="exam-shell" class="quiz-container">
                                 <div class="exam-header">
-                                    <div class="title">
-                                        <h4 class="h5">\${escapeHTML(quizState.title)}</h4>
-                                    </div>
-                                    <div class="left">
+                                    <div class="exam-header-row top">
                                         <span id="exam-q-counter"></span>
-                                    </div>
-                                    <div class="right">
-                                        <span id="exam-timer-display" class="is-exam">Sisa Waktu: --:--</span>
                                         <button id="exam-fs-btn" type="button" class="btn btn-outline-secondary btn-sm" title="Layar Penuh">Layar Penuh</button>
+                                    </div>
+                                    <div class="exam-header-row bottom">
+                                        <h4 id="exam-title-text" class="h5 exam-title">\${escapeHTML(quizState.title)}</h4>
+                                        <span id="exam-timer-display" class="is-exam">Sisa Waktu: --:--</span>
                                     </div>
                                 </div>
                 <div class="progress mb-3" style="height: 5px;"><div class="progress-bar" id="exam-progress-bar"></div></div>
