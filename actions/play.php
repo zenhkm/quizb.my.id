@@ -67,7 +67,13 @@ if (empty($allowed_teacher_ids)) {
 }
 
 if (!$title) {
-  echo '<div class="alert alert-warning">Judul kuis tidak ditemukan.</div>';
+  echo '<div class="container mt-4">';
+  echo '<div class="alert alert-warning">';
+  echo '<strong>Judul kuis tidak ditemukan.</strong><br>';
+  echo 'Judul kuis ini mungkin tidak tersedia atau telah dihapus.';
+  echo '</div>';
+  echo '<a href="?page=home" class="btn btn-primary">Kembali ke Beranda</a>';
+  echo '</div>';
   return;
 }
 
@@ -82,12 +88,20 @@ if (!$mode && $should_show_mode_selection) {
     return;
 }
 
-// Dengan guard yang baru, kita bisa berasumsi sesi sudah siap.
-// Jika sesi tidak ada (misal, karena akses URL manual yang salah), beri peringatan.
+// Jika ada mode tapi tidak ada session, redirect ke mode selection (hapus parameter i dan mode)
+if ($mode && (!isset($_SESSION['quiz']) || !isset($_SESSION['quiz']['session_id']))) {
+    // User mengakses langsung dengan mode tanpa membuat session terlebih dahulu
+    // Redirect ke halaman pemilihan mode untuk memulai sesi baru (hapus parameter mode dan i)
+    $clean_url = "?page=play&title_id=$title_id";
+    header("Location: $clean_url");
+    exit;
+}
+
+// Jika tidak ada mode dan tidak ada session, sudah ditangani oleh mode selection di atas
 if (!isset($_SESSION['quiz']) || !isset($_SESSION['quiz']['session_id'])) {
-    echo '<div class="alert alert-warning">Sesi kuis tidak valid. Silakan mulai dari awal.</div>';
-    echo '<a href="?page=play&title_id=' . $title_id . '" class="btn btn-primary">Pilih Mode</a>';
-    return;
+    // Jika sampai sini berarti ada masalah, redirect paksa ke home
+    header("Location: ?page=home");
+    exit;
 }
 
 // Langsung gunakan session_id yang sudah ada dan valid.
