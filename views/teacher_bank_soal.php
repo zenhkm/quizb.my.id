@@ -13,6 +13,9 @@ $selected_subtheme = (int)($_GET['subtheme_id'] ?? 0);
 $selected_title = (int)($_GET['title_id'] ?? 0);
 $edit_question = (int)($_GET['edit_q'] ?? 0);
 
+// Master list (untuk modal tambah judul). Tidak ditampilkan di sidebar.
+$all_themes = q("SELECT id, name FROM themes ORDER BY sort_order, name")->fetchAll();
+
 // Ambil data untuk panel - hanya tema/subtema yang punya judul milik pengajar
 // (agar tema/subtema yang hanya berisi konten admin tidak muncul)
 $themes = q(
@@ -254,6 +257,12 @@ $message = $_GET['msg'] ?? '';
         <p class="text-muted mb-0">Kelola judul dan soal milik Anda</p>
     </div>
     <div class="btn-group">
+        <button type="button" class="btn btn-primary" onclick="showAddTitleModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1" aria-hidden="true">
+                <path d="M8 1a.5.5 0 0 1 .5.5V7.5H14.5a.5.5 0 0 1 0 1H8.5V14.5a.5.5 0 0 1-1 0V8.5H1.5a.5.5 0 0 1 0-1H7.5V1.5A.5.5 0 0 1 8 1"/>
+            </svg>
+            Tambah Judul
+        </button>
         <a href="?page=import_questions" class="btn btn-outline-primary">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-upload" viewBox="0 0 16 16">
                 <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
@@ -496,6 +505,17 @@ $message = $_GET['msg'] ?? '';
                     <input type="hidden" name="subtheme_id" id="title_subtheme_id">
                     <input type="hidden" name="title_id" id="title_id">
                     <input type="hidden" name="theme_id" id="title_theme_id">
+
+                    <div id="title-picker" class="mb-3" style="display:none;">
+                        <label class="form-label">Tema</label>
+                        <select id="title_theme_select" class="form-select"></select>
+                        <div class="mt-3">
+                            <label class="form-label">Subtema</label>
+                            <select id="title_subtheme_select" class="form-select"></select>
+                            <div id="title_subtheme_help" class="form-text"></div>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label">Judul Soal</label>
                         <input type="text" name="title" id="title_name" class="form-control" required>
@@ -503,7 +523,7 @@ $message = $_GET['msg'] ?? '';
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveTitle">Simpan</button>
                 </div>
             </form>
         </div>
@@ -567,14 +587,119 @@ $message = $_GET['msg'] ?? '';
 <script>
 let choiceCount = 2;
 
+const ALL_THEMES = <?= json_encode($all_themes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+function setTitleSaveEnabled(isEnabled, helpText = '') {
+    const btn = document.getElementById('btnSaveTitle');
+    const help = document.getElementById('title_subtheme_help');
+    if (btn) btn.disabled = !isEnabled;
+    if (help) help.textContent = helpText || '';
+}
+
+async function loadSubthemesForTheme(themeId, preferSubthemeId = 0) {
+    const subSelect = document.getElementById('title_subtheme_select');
+    const hiddenSub = document.getElementById('title_subtheme_id');
+    if (!subSelect || !hiddenSub) return;
+
+    subSelect.innerHTML = '';
+    hiddenSub.value = '';
+    setTitleSaveEnabled(false, 'Memuat subtema...');
+
+    try {
+        const res = await fetch(`?action=api_get_subthemes&theme_id=${encodeURIComponent(themeId)}`);
+        if (!res.ok) throw new Error('Gagal memuat subtema');
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+            setTitleSaveEnabled(false, 'Tidak ada subtema pada tema ini.');
+            return;
+        }
+
+        for (const st of data) {
+            const opt = document.createElement('option');
+            opt.value = String(st.id);
+            opt.textContent = st.name;
+            subSelect.appendChild(opt);
+        }
+
+        const targetId = preferSubthemeId && data.some(x => Number(x.id) === Number(preferSubthemeId))
+            ? String(preferSubthemeId)
+            : String(data[0].id);
+
+        subSelect.value = targetId;
+        hiddenSub.value = targetId;
+        setTitleSaveEnabled(true, '');
+    } catch (e) {
+        console.error(e);
+        setTitleSaveEnabled(false, 'Gagal memuat subtema.');
+    }
+}
+
+function initTitlePicker() {
+    const picker = document.getElementById('title-picker');
+    const themeSelect = document.getElementById('title_theme_select');
+    const subSelect = document.getElementById('title_subtheme_select');
+    const hiddenTheme = document.getElementById('title_theme_id');
+    const hiddenSub = document.getElementById('title_subtheme_id');
+
+    if (!picker || !themeSelect || !subSelect || !hiddenTheme || !hiddenSub) return;
+
+    picker.style.display = 'block';
+    themeSelect.innerHTML = '';
+
+    if (!Array.isArray(ALL_THEMES) || ALL_THEMES.length === 0) {
+        setTitleSaveEnabled(false, 'Tema belum tersedia.');
+        return;
+    }
+
+    for (const t of ALL_THEMES) {
+        const opt = document.createElement('option');
+        opt.value = String(t.id);
+        opt.textContent = t.name;
+        themeSelect.appendChild(opt);
+    }
+
+    const qs = new URLSearchParams(window.location.search);
+    const preferThemeId = Number(qs.get('theme_id') || 0);
+    const preferSubthemeId = Number(qs.get('subtheme_id') || 0);
+    const initialThemeId = preferThemeId && ALL_THEMES.some(x => Number(x.id) === preferThemeId)
+        ? String(preferThemeId)
+        : String(ALL_THEMES[0].id);
+
+    themeSelect.value = initialThemeId;
+    hiddenTheme.value = initialThemeId;
+
+    themeSelect.onchange = async () => {
+        hiddenTheme.value = themeSelect.value;
+        await loadSubthemesForTheme(themeSelect.value, 0);
+    };
+    subSelect.onchange = () => {
+        hiddenSub.value = subSelect.value;
+    };
+
+    loadSubthemesForTheme(initialThemeId, preferSubthemeId);
+}
+
 function showAddTitleModal(subthemeId) {
     document.getElementById('title_act').value = 'add_title';
     document.getElementById('titleModalTitle').textContent = 'Tambah Judul Soal';
-    document.getElementById('title_subtheme_id').value = subthemeId;
+    const picker = document.getElementById('title-picker');
+    const hiddenSub = document.getElementById('title_subtheme_id');
+
+    if (subthemeId) {
+        if (picker) picker.style.display = 'none';
+        hiddenSub.value = subthemeId;
+        const themeId = new URLSearchParams(window.location.search).get('theme_id');
+        document.getElementById('title_theme_id').value = themeId || '';
+        setTitleSaveEnabled(true, '');
+    } else {
+        hiddenSub.value = '';
+        document.getElementById('title_theme_id').value = '';
+        initTitlePicker();
+    }
+
     document.getElementById('title_name').value = '';
     document.getElementById('title_id').value = '';
-    const themeId = new URLSearchParams(window.location.search).get('theme_id');
-    document.getElementById('title_theme_id').value = themeId;
     new bootstrap.Modal(document.getElementById('titleModal')).show();
 }
 
