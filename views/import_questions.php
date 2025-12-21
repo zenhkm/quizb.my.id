@@ -100,46 +100,87 @@ $imported_count = $_GET['count'] ?? 0;
                             <input type="hidden" name="act" value="import_excel">
                             
                             <div class="mb-3">
-                                <label for="title_id" class="form-label">Judul Soal Tujuan <span class="text-danger">*</span></label>
-                                <select name="title_id" id="title_id" class="form-select" required>
-                                    <option value="">-- Pilih Judul Soal --</option>
-                                    <?php
-                                    // Tampilkan judul soal berdasarkan role
-                                    if (is_admin()) {
-                                        // Admin bisa import ke semua judul
-                                        $titles = q("
-                                            SELECT qt.id, qt.title, st.name AS subtheme, t.name AS theme
-                                            FROM quiz_titles qt
-                                            JOIN subthemes st ON st.id = qt.subtheme_id
-                                            JOIN themes t ON t.id = st.theme_id
-                                            ORDER BY t.name, st.name, qt.title
-                                        ")->fetchAll();
-                                    } else {
-                                        // Pengajar hanya bisa import ke judul miliknya
-                                        $titles = q("
-                                            SELECT qt.id, qt.title, st.name AS subtheme, t.name AS theme
-                                            FROM quiz_titles qt
-                                            JOIN subthemes st ON st.id = qt.subtheme_id
-                                            JOIN themes t ON t.id = st.theme_id
-                                            WHERE qt.owner_user_id = ?
-                                            ORDER BY t.name, st.name, qt.title
-                                        ", [uid()])->fetchAll();
-                                    }
-                                    
-                                    foreach ($titles as $title) {
-                                        echo '<option value="' . $title['id'] . '">';
-                                        echo h($title['theme'] . ' › ' . $title['subtheme'] . ' › ' . $title['title']);
-                                        echo '</option>';
-                                    }
-                                    ?>
-                                </select>
-                                <small class="form-text text-muted">
-                                    <?php if (is_admin()): ?>
-                                        Admin dapat mengimpor ke semua judul soal.
-                                    <?php else: ?>
-                                        Anda hanya dapat mengimpor ke judul soal yang Anda buat.
-                                    <?php endif; ?>
-                                </small>
+                                <label class="form-label">Pilih Judul Soal <span class="text-danger">*</span></label>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="title_option" id="existing_title" value="existing" checked onchange="toggleTitleFields()">
+                                    <label class="form-check-label" for="existing_title">
+                                        Gunakan Judul Yang Sudah Ada
+                                    </label>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="radio" name="title_option" id="new_title" value="new" onchange="toggleTitleFields()">
+                                    <label class="form-check-label" for="new_title">
+                                        Buat Judul Baru
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Existing Title Selection -->
+                            <div id="existing_title_section">
+                                <div class="mb-3">
+                                    <label for="title_id" class="form-label">Pilih Judul Soal <span class="text-danger">*</span></label>
+                                    <select name="title_id" id="title_id" class="form-select">
+                                        <option value="">-- Pilih Judul Soal --</option>
+                                        <?php
+                                        // Tampilkan judul soal berdasarkan role
+                                        if (is_admin()) {
+                                            // Admin bisa import ke semua judul
+                                            $titles = q("
+                                                SELECT qt.id, qt.title, st.name AS subtheme, t.name AS theme
+                                                FROM quiz_titles qt
+                                                JOIN subthemes st ON st.id = qt.subtheme_id
+                                                JOIN themes t ON t.id = st.theme_id
+                                                ORDER BY t.name, st.name, qt.title
+                                            ")->fetchAll();
+                                        } else {
+                                            // Pengajar hanya bisa import ke judul miliknya
+                                            $titles = q("
+                                                SELECT qt.id, qt.title, st.name AS subtheme, t.name AS theme
+                                                FROM quiz_titles qt
+                                                JOIN subthemes st ON st.id = qt.subtheme_id
+                                                JOIN themes t ON t.id = st.theme_id
+                                                WHERE qt.owner_user_id = ?
+                                                ORDER BY t.name, st.name, qt.title
+                                            ", [uid()])->fetchAll();
+                                        }
+                                        
+                                        foreach ($titles as $title) {
+                                            echo '<option value="' . $title['id'] . '">';
+                                            echo h($title['theme'] . ' › ' . $title['subtheme'] . ' › ' . $title['title']);
+                                            echo '</option>';
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- New Title Creation -->
+                            <div id="new_title_section" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="theme_id" class="form-label">Tema <span class="text-danger">*</span></label>
+                                    <select name="theme_id" id="theme_id" class="form-select" onchange="loadSubthemes()">
+                                        <option value="">-- Pilih Tema --</option>
+                                        <?php
+                                        $themes = q("SELECT id, name FROM themes ORDER BY name")->fetchAll();
+                                        foreach ($themes as $theme) {
+                                            echo '<option value="' . $theme['id'] . '">' . h($theme['name']) . '</option>';
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="subtheme_id" class="form-label">Subtema <span class="text-danger">*</span></label>
+                                    <select name="subtheme_id" id="subtheme_id" class="form-select">
+                                        <option value="">-- Pilih Tema Dulu --</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="new_title_name" class="form-label">Nama Judul Soal Baru <span class="text-danger">*</span></label>
+                                    <input type="text" name="new_title_name" id="new_title_name" class="form-control" placeholder="Contoh: Kuis Matematika Kelas 7">
+                                    <small class="form-text text-muted">Nama judul soal yang akan dibuat</small>
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -183,12 +224,13 @@ $imported_count = $_GET['count'] ?? 0;
                     <li><strong>Pilih Jawaban Benar</strong> - Di kolom "Jawaban Benar", isi dengan huruf A, B, C, D, atau E sesuai pilihan yang benar.</li>
                     <li><strong>Tambahkan Penjelasan</strong> - Kolom penjelasan bersifat opsional, namun sangat disarankan untuk pembelajaran.</li>
                     <li><strong>Simpan File</strong> - Simpan file Excel Anda (format .xlsx atau .xls).</li>
-                    <li><strong>Pilih Judul Soal</strong> - Pilih judul soal yang akan menjadi tujuan import.</li>
+                    <li><strong>Pilih Judul Soal</strong> - Pilih judul soal yang sudah ada, atau buat judul baru langsung dari form import.</li>
                     <li><strong>Upload File</strong> - Klik tombol "Upload dan Import" untuk memulai proses import.</li>
                 </ol>
 
                 <h6 class="mt-3">Tips & Catatan:</h6>
                 <ul>
+                    <li><strong>Buat Judul Baru:</strong> Anda bisa membuat judul soal baru langsung saat import tanpa perlu ke halaman CRUD terlebih dahulu.</li>
                     <li>Pastikan file Excel tidak rusak dan bisa dibuka dengan baik.</li>
                     <li>Jangan mengubah struktur header (baris pertama) pada template.</li>
                     <li>Baris kedua pada template berisi contoh data yang bisa Anda hapus.</li>
@@ -209,8 +251,71 @@ $imported_count = $_GET['count'] ?? 0;
 </div>
 
 <script>
+// Toggle between existing and new title
+function toggleTitleFields() {
+    const isNew = document.getElementById('new_title').checked;
+    document.getElementById('existing_title_section').style.display = isNew ? 'none' : 'block';
+    document.getElementById('new_title_section').style.display = isNew ? 'block' : 'none';
+    
+    // Update required attributes
+    if (isNew) {
+        document.getElementById('title_id').removeAttribute('required');
+        document.getElementById('theme_id').setAttribute('required', 'required');
+        document.getElementById('subtheme_id').setAttribute('required', 'required');
+        document.getElementById('new_title_name').setAttribute('required', 'required');
+    } else {
+        document.getElementById('title_id').setAttribute('required', 'required');
+        document.getElementById('theme_id').removeAttribute('required');
+        document.getElementById('subtheme_id').removeAttribute('required');
+        document.getElementById('new_title_name').removeAttribute('required');
+    }
+}
+
+// Load subthemes berdasarkan theme
+function loadSubthemes() {
+    const themeId = document.getElementById('theme_id').value;
+    const subthemeSelect = document.getElementById('subtheme_id');
+    
+    if (!themeId) {
+        subthemeSelect.innerHTML = '<option value="">-- Pilih Tema Dulu --</option>';
+        return;
+    }
+    
+    // Fetch subthemes via AJAX
+    fetch('?page=import_questions&action=get_subthemes&theme_id=' + themeId)
+        .then(response => response.json())
+        .then(data => {
+            subthemeSelect.innerHTML = '<option value="">-- Pilih Subtema --</option>';
+            data.forEach(sub => {
+                const option = document.createElement('option');
+                option.value = sub.id;
+                option.textContent = sub.name;
+                subthemeSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading subthemes:', error);
+            subthemeSelect.innerHTML = '<option value="">-- Error loading subtemas --</option>';
+        });
+}
+
 // Loading state saat submit form
-document.getElementById('importForm').addEventListener('submit', function() {
+document.getElementById('importForm').addEventListener('submit', function(e) {
+    const isNew = document.getElementById('new_title').checked;
+    
+    // Validasi tambahan
+    if (isNew) {
+        const themeName = document.getElementById('theme_id').selectedOptions[0]?.text;
+        const subthemeName = document.getElementById('subtheme_id').selectedOptions[0]?.text;
+        const titleName = document.getElementById('new_title_name').value;
+        
+        if (!titleName || titleName.trim() === '') {
+            alert('Nama judul soal tidak boleh kosong!');
+            e.preventDefault();
+            return false;
+        }
+    }
+    
     const btn = document.getElementById('btnSubmit');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengimpor...';

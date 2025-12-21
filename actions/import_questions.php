@@ -137,28 +137,68 @@ if (!is_pengajar() && !is_admin()) {
 }
 
 // ============================================================
+// AJAX: GET SUBTHEMES BY THEME
+// ============================================================
+if ($act === 'get_subthemes' && isset($_GET['theme_id'])) {
+    header('Content-Type: application/json');
+    $theme_id = (int)$_GET['theme_id'];
+    $subthemes = q("SELECT id, name FROM subthemes WHERE theme_id = ? ORDER BY name", [$theme_id])->fetchAll();
+    echo json_encode($subthemes);
+    exit;
+}
+
+// ============================================================
 // IMPORT EXCEL
 // ============================================================
 if ($act === 'import_excel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title_id = (int)($_POST['title_id'] ?? 0);
+    $title_option = $_POST['title_option'] ?? 'existing';
     $user_id = uid();
+    $title_id = 0;
     
-    // Validasi title_id
-    if ($title_id <= 0) {
-        redirect('?page=import_questions&error=' . urlencode('Pilih judul soal terlebih dahulu.'));
-    }
-    
-    // Cek kepemilikan title (untuk pengajar)
-    if (!is_admin()) {
-        $title_check = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ?", [$title_id, $user_id])->fetch();
-        if (!$title_check) {
-            redirect('?page=import_questions&error=' . urlencode('Anda tidak memiliki akses ke judul soal ini.'));
+    // Handle pembuatan judul baru atau gunakan yang sudah ada
+    if ($title_option === 'new') {
+        // Buat judul baru
+        $theme_id = (int)($_POST['theme_id'] ?? 0);
+        $subtheme_id = (int)($_POST['subtheme_id'] ?? 0);
+        $new_title_name = trim($_POST['new_title_name'] ?? '');
+        
+        if ($subtheme_id <= 0 || empty($new_title_name)) {
+            redirect('?page=import_questions&error=' . urlencode('Data judul baru tidak lengkap.'));
         }
+        
+        // Cek apakah subtheme valid
+        $subtheme_check = q("SELECT theme_id FROM subthemes WHERE id = ?", [$subtheme_id])->fetch();
+        if (!$subtheme_check) {
+            redirect('?page=import_questions&error=' . urlencode('Subtema tidak ditemukan.'));
+        }
+        
+        // Buat judul baru
+        $owner_id = is_admin() ? null : $user_id;
+        q("INSERT INTO quiz_titles (subtheme_id, title, owner_user_id, created_at) VALUES (?, ?, ?, ?)", 
+          [$subtheme_id, $new_title_name, $owner_id, now()]);
+        $title_id = (int)pdo()->lastInsertId();
+        
     } else {
-        // Cek apakah title_id valid untuk admin
-        $title_check = q("SELECT id FROM quiz_titles WHERE id = ?", [$title_id])->fetch();
-        if (!$title_check) {
-            redirect('?page=import_questions&error=' . urlencode('Judul soal tidak ditemukan.'));
+        // Gunakan judul yang sudah ada
+        $title_id = (int)($_POST['title_id'] ?? 0);
+        
+        // Validasi title_id
+        if ($title_id <= 0) {
+            redirect('?page=import_questions&error=' . urlencode('Pilih judul soal terlebih dahulu.'));
+        }
+        
+        // Cek kepemilikan title (untuk pengajar)
+        if (!is_admin()) {
+            $title_check = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ?", [$title_id, $user_id])->fetch();
+            if (!$title_check) {
+                redirect('?page=import_questions&error=' . urlencode('Anda tidak memiliki akses ke judul soal ini.'));
+            }
+        } else {
+            // Cek apakah title_id valid untuk admin
+            $title_check = q("SELECT id FROM quiz_titles WHERE id = ?", [$title_id])->fetch();
+            if (!$title_check) {
+                redirect('?page=import_questions&error=' . urlencode('Judul soal tidak ditemukan.'));
+            }
         }
     }
     
