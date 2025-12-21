@@ -67,6 +67,8 @@ if ($edit_question) {
     }
 }
 
+$is_editing_question = (bool)($edit_question && $question_detail);
+
 $success = $_GET['success'] ?? '';
 $message = $_GET['msg'] ?? '';
 ?>
@@ -80,6 +82,18 @@ $message = $_GET['msg'] ?? '';
     gap: 20px;
     height: calc(100vh - 180px);
     min-height: 600px;
+}
+
+/* Saat edit soal aktif: fokus ke editor, sembunyikan panel Tema/Subtema + daftar Judul */
+.bank-soal-container.editing-question {
+    grid-template-columns: 1fr;
+}
+.bank-soal-container.editing-question > .panel:nth-child(1),
+.bank-soal-container.editing-question > .panel:nth-child(2) {
+    display: none;
+}
+.bank-soal-container.editing-question .bank-soal-title-picker {
+    display: none;
 }
 
 .panel {
@@ -246,7 +260,7 @@ $message = $_GET['msg'] ?? '';
     </div>
 </div>
 
-<div class="bank-soal-container">
+<div class="bank-soal-container<?= $is_editing_question ? ' editing-question' : '' ?>">
     <!-- PANEL 1: TEMA -->
     <div class="panel">
         <div class="panel-header">
@@ -346,7 +360,7 @@ $message = $_GET['msg'] ?? '';
             </div>
             <?php else: ?>
                 <!-- List untuk judul dengan tombol edit/delete -->
-                <div class="mb-3">
+                <div class="bank-soal-title-picker mb-3">
                     <label class="form-label fw-bold">Daftar Judul Soal:</label>
                     <div class="list-group">
                         <?php foreach ($titles as $idx => $title): ?>
