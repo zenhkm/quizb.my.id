@@ -6406,26 +6406,33 @@ function view_profile()
             }, 0);
         </script>";
   } else {
-    // ▼▼▼ PERUBAHAN QUERY SQL DI SINI ▼▼▼
-    $rows = q("
-            SELECT 
-                r.id AS result_id, -- <--- TAMBAHKAN INI
-                r.score, 
-                r.created_at, 
-                qt.id AS title_id, 
-                qt.title, 
-                st.name AS subtheme_name,
-                s.mode -- Tambahkan kolom mode dari tabel sesi
-            FROM results r 
-            JOIN quiz_titles qt ON qt.id = r.title_id 
-            JOIN subthemes st ON st.id = qt.subtheme_id 
-            JOIN quiz_sessions s ON s.id = r.session_id -- JOIN tabel sesi
-            WHERE r.user_id = ? 
-            ORDER BY r.created_at DESC
-        ", [$profile_user_id])->fetchAll();
-    // ▲▲▲ AKHIR PERUBAHAN QUERY ▲▲▲
+    // Privasi: selain admin, hanya boleh lihat riwayat milik sendiri.
+    $history_hidden = (!$is_own_profile && !is_admin());
 
-    if (!$rows) {
+    if ($history_hidden) {
+      $rows = [];
+    } else {
+      $rows = q("
+              SELECT 
+                  r.id AS result_id,
+                  r.score, 
+                  r.created_at, 
+                  qt.id AS title_id, 
+                  qt.title, 
+                  st.name AS subtheme_name,
+                  s.mode
+              FROM results r 
+              JOIN quiz_titles qt ON qt.id = r.title_id 
+              JOIN subthemes st ON st.id = qt.subtheme_id 
+              JOIN quiz_sessions s ON s.id = r.session_id
+              WHERE r.user_id = ? 
+              ORDER BY r.created_at DESC
+          ", [$profile_user_id])->fetchAll();
+    }
+
+    if ($history_hidden) {
+      echo '<div class="alert alert-secondary mt-4">Riwayat kuis pengguna lain tidak dapat dilihat.</div>';
+    } elseif (!$rows) {
       echo '<div class="alert alert-secondary mt-4">Pengguna ini belum memiliki riwayat kuis.</div>';
     } else {
       echo '<h5 class="mt-4">Riwayat Kuis</h5>';
@@ -6441,15 +6448,15 @@ function view_profile()
       echo '</tr></thead><tbody>';
 
      foreach ($rows as $r) {
-        $review_url = '?page=review&result_id=' . (int)$r['result_id'];
-        
-        // Tautkan seluruh baris ke halaman review, tetapi hanya jika Admin yang melihat.
-        // Jika bukan admin, biarkan barisnya biasa, kecuali untuk kolom Aksi.
-        if (is_admin()) {
-            echo '<tr onclick="window.location.href=\'' . $review_url . '\'" style="cursor:pointer;">';
-        } else {
-            echo '<tr>';
-        }
+      $review_url = '?page=review&result_id=' . (int)$r['result_id'];
+
+      // Admin & pemilik profil boleh klik baris untuk menuju review.
+      $row_clickable = ($is_own_profile || is_admin());
+      if ($row_clickable) {
+        echo '<tr onclick="if(event.target.closest(\'a,button,input,select,textarea,label,form\')) return; window.location.href=\'' . $review_url . '\'" style="cursor:pointer;">';
+      } else {
+        echo '<tr>';
+      }
 
         echo '<td>' . h($r['created_at']) . '</td><td>' . h($r['title']) . '</td>';
 
@@ -6459,11 +6466,7 @@ function view_profile()
 
         if ($is_own_profile) {
           echo '<td>';
-          
-          // Tampilkan tombol Review HANYA jika Admin
-          if (is_admin()) {
-              echo '<a href="' . $review_url . '" class="btn btn-sm btn-info w-100 mb-1">Review</a>';
-          }
+          echo '<a href="' . $review_url . '" class="btn btn-sm btn-info w-100 mb-1">Review</a>';
           
           if ((int)$r['score'] === 100) {
             // ... (Tombol Laporan dan Story WA)
