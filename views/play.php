@@ -20,20 +20,29 @@ echo <<<'CSS'
         border-color: var(--bs-primary);
     }
     /* Choice chips */
-    .quiz-choices-grid { display: grid; gap: var(--space-3, .75rem); }
+    .quiz-choices-grid { display: grid; gap: var(--space-4, 1rem); }
     .quiz-choice-item {
         display: block;
         width: 100%;
         text-align: center;
         background: var(--surface-1, #fff);
         color: var(--text-1, inherit);
-        border: 1px solid var(--border-1, #dee2e6);
+        border: 2px solid var(--bs-border-color);
         border-radius: var(--radius-lg, .75rem);
         padding: var(--space-4, 1rem) var(--space-5, 1.5rem);
         transition: background-color var(--transition-fast, 120ms ease), border-color var(--transition-fast, 120ms ease), box-shadow var(--transition-fast, 120ms ease);
     }
-    .quiz-choice-item:hover { background: var(--surface-2, #f8f9fa); box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,.05)); }
-    .quiz-choice-item:focus { outline: 2px solid transparent; box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand, #0d6efd) 25%, transparent); }
+    .quiz-choice-item:hover {
+        background: var(--surface-2, #f8f9fa);
+        border-color: var(--bs-primary);
+        box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,.05));
+    }
+    .quiz-choice-item:focus,
+    .quiz-choice-item:focus-visible {
+        outline: 2px solid transparent;
+        border-color: var(--bs-primary);
+        box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand, #0d6efd) 25%, transparent);
+    }
     .quiz-choice-item.selected {
         background-color: var(--brand, var(--bs-primary));
         color: var(--brand-contrast, #fff);
