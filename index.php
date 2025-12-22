@@ -624,6 +624,45 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_online_count') {
   exit;
 }
 
+// API: Peserta terbaru realtime-ish (homepage)
+if (isset($_GET['action']) && $_GET['action'] === 'api_get_latest_participants') {
+  header('Content-Type: application/json; charset=UTF-8');
+
+  $limit = (int)($_GET['limit'] ?? 5);
+  if ($limit <= 0) {
+    $limit = 5;
+  }
+  $limit = min(20, $limit);
+
+  $recent = q(
+    "SELECT r.created_at, r.score, r.user_id, COALESCE(u.name, CONCAT('Tamu – ', COALESCE(r.city,'Anonim'))) AS display_name, u.avatar, qt.title AS quiz_title 
+     FROM results r 
+     LEFT JOIN users u ON u.id = r.user_id 
+     LEFT JOIN quiz_titles qt ON qt.id = r.title_id 
+     WHERE (u.id IS NULL OR u.role != 'admin') 
+     ORDER BY r.created_at DESC LIMIT {$limit}"
+  )->fetchAll();
+
+  $html = '';
+  foreach (($recent ?: []) as $r) {
+    $avatar = !empty($r['avatar']) ? $r['avatar'] : 'https://www.gravatar.com/avatar/?d=mp&s=40';
+    $profile_url = !empty($r['user_id']) ? '?page=profile&user_id=' . (int)$r['user_id'] : '#';
+
+    $html .= '<a href="' . $profile_url . '" class="list-group-item list-group-item-action p-2">';
+    $html .= '  <div class="d-flex align-items-center">';
+    $html .= '    <img src="' . h($avatar) . '" class="rounded-circle me-3" width="40" height="40" alt="Avatar">';
+    $html .= '    <div style="line-height: 1.3;">';
+    $html .= '      <div class="fw-semibold mb-1">' . h($r['display_name']) . '</div>';
+    $html .= '      <div class="small text-muted">' . h($r['quiz_title'] ?? '—') . '</div>';
+    $html .= '    </div>';
+    $html .= '  </div>';
+    $html .= '</a>';
+  }
+
+  echo json_encode(['ok' => true, 'html' => $html, 'limit' => $limit]);
+  exit;
+}
+
 
 // =================================================================
 // BLOK BARU: QUIZ STARTER GUARD (Mendukung Tugas & Kuis Biasa)

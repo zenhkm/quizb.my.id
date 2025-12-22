@@ -320,7 +320,7 @@ echo <<<'HTML'
 </script>
 HTML;
   echo '<h5 class="widget-title">🏆 Peserta Terbaru</h5>';
-  echo '<div class="list-group sidebar-widget">';
+    echo '<div id="latestParticipantsList" class="list-group sidebar-widget">';
     foreach ($recent as $r) {
         $avatar = !empty($r['avatar']) ? $r['avatar'] : 'https://www.gravatar.com/avatar/?d=mp&s=40';
         $profile_url = !empty($r['user_id']) ? '?page=profile&user_id=' . $r['user_id'] : '#';
@@ -333,6 +333,37 @@ HTML;
     echo '    </div></div></a>';
   }
   echo '</div>';
+
+echo <<<'HTML'
+<script>
+(function(){
+    const list = document.getElementById('latestParticipantsList');
+    if (!list) return;
+
+    let controller = null;
+    async function refreshLatestParticipants(){
+        try {
+            if (controller) controller.abort();
+            controller = new AbortController();
+
+            const res = await fetch('?action=api_get_latest_participants&limit=5', {
+                cache: 'no-store',
+                signal: controller.signal
+            });
+            const j = await res.json();
+            if (j && j.ok && typeof j.html === 'string') {
+                list.innerHTML = j.html;
+            }
+        } catch (e) {
+            // silent
+        }
+    }
+
+    refreshLatestParticipants();
+    setInterval(refreshLatestParticipants, 60000);
+})();
+</script>
+HTML;
 
   echo '</div>'; // Penutup .col-lg-4
 
