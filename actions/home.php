@@ -7,7 +7,7 @@ $recent = q("SELECT r.created_at, r.score, r.user_id, COALESCE(u.name, CONCAT('T
                WHERE (u.id IS NULL OR u.role != 'admin') 
                ORDER BY r.created_at DESC LIMIT 5")
   ->fetchAll();
-$online_minutes = 5;
+$online_minutes = 1;
 $online_count = count_online_sessions($online_minutes);
 $is_visitor_logged_in = uid();
 $tops = get_top_scores(5);

@@ -307,7 +307,7 @@ echo <<<'HTML'
   if (!badge) return;
   async function refreshOnline(){
     try {
-      const res = await fetch('?action=api_get_online_count&minutes=5', { cache: 'no-store' });
+      const res = await fetch('?action=api_get_online_count&minutes=1', { cache: 'no-store' });
       const j = await res.json();
       if (j && j.ok && typeof j.online_count !== 'undefined') {
         badge.textContent = j.online_count;
