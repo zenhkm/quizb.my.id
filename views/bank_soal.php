@@ -368,7 +368,14 @@ $message = $_GET['msg'] ?? '';
                 <?php if ($selected_title): ?>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="mb-0"><?= h($title_info['title']) ?></h5>
-                    <button class="btn btn-primary btn-sm" onclick="showAddQuestionModal()">+ Tambah Soal</button>
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener"
+                           href="?page=bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $selected_title ?>&act=download_excel">
+                            <i class="bi bi-file-earmark-excel"></i>
+                            Download Excel
+                        </a>
+                        <button class="btn btn-primary btn-sm" onclick="showAddQuestionModal()">+ Tambah Soal</button>
+                    </div>
                 </div>
 
                 <?php if ($edit_question && $question_detail): ?>

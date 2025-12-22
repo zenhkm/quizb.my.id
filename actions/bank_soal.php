@@ -7,7 +7,157 @@ if (!is_admin()) {
     return;
 }
 
-$act = $_POST['act'] ?? '';
+$act = $_POST['act'] ?? ($_GET['act'] ?? '');
+
+// ============================================================
+// DOWNLOAD SOAL EXCEL (Format sama dengan template import)
+// ============================================================
+if ($act === 'download_excel') {
+    $title_id = (int)($_GET['title_id'] ?? 0);
+    if ($title_id <= 0) {
+        die('ID Judul tidak valid');
+    }
+
+    // Autoload PhpSpreadsheet
+    require_once __DIR__ . '/../vendor/autoload.php';
+
+    if (!class_exists('PhpOffice\\PhpSpreadsheet\\Spreadsheet')) {
+        die('PhpSpreadsheet Library Tidak Ditemukan');
+    }
+
+    // Ambil info judul
+    $title_info = q(
+        "SELECT qt.title, st.name AS subtheme, t.name AS theme
+         FROM quiz_titles qt
+         JOIN subthemes st ON st.id = qt.subtheme_id
+         JOIN themes t ON t.id = st.theme_id
+         WHERE qt.id = ?",
+        [$title_id]
+    )->fetch();
+
+    if (!$title_info) {
+        die('Data tidak ditemukan');
+    }
+
+    // Ambil semua soal
+    $questions = q(
+        "SELECT id, text, explanation
+         FROM questions
+         WHERE title_id = ?
+         ORDER BY id ASC",
+        [$title_id]
+    )->fetchAll();
+
+    // Bersihkan output buffer sebelum header download
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+    // Header kolom (persis seperti template import)
+    $sheet->setCellValue('A1', 'Pertanyaan');
+    $sheet->setCellValue('B1', 'Pilihan A');
+    $sheet->setCellValue('C1', 'Pilihan B');
+    $sheet->setCellValue('D1', 'Pilihan C');
+    $sheet->setCellValue('E1', 'Pilihan D');
+    $sheet->setCellValue('F1', 'Pilihan E');
+    $sheet->setCellValue('G1', 'Jawaban Benar (A/B/C/D/E)');
+    $sheet->setCellValue('H1', 'Penjelasan (Opsional)');
+
+    $headerStyle = [
+        'font' => [
+            'bold' => true,
+            'color' => ['rgb' => 'FFFFFF'],
+            'size' => 12,
+        ],
+        'fill' => [
+            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '0fb26b'],
+        ],
+        'alignment' => [
+            'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+            'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+        ],
+    ];
+    $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+
+    // Lebar kolom (persis seperti template import)
+    $sheet->getColumnDimension('A')->setWidth(50);
+    $sheet->getColumnDimension('B')->setWidth(30);
+    $sheet->getColumnDimension('C')->setWidth(30);
+    $sheet->getColumnDimension('D')->setWidth(30);
+    $sheet->getColumnDimension('E')->setWidth(30);
+    $sheet->getColumnDimension('F')->setWidth(30);
+    $sheet->getColumnDimension('G')->setWidth(25);
+    $sheet->getColumnDimension('H')->setWidth(40);
+
+    // Isi data
+    $letters = ['A', 'B', 'C', 'D', 'E'];
+    $row = 2;
+    foreach (($questions ?: []) as $q) {
+        $sheet->setCellValue('A' . $row, (string)($q['text'] ?? ''));
+
+        $choices = q(
+            "SELECT text, is_correct
+             FROM choices
+             WHERE question_id = ?
+             ORDER BY id ASC",
+            [(int)$q['id']]
+        )->fetchAll();
+
+        $correct_letter = '';
+        for ($i = 0; $i < 5; $i++) {
+            $choice_text = $choices[$i]['text'] ?? '';
+            $is_correct = (int)($choices[$i]['is_correct'] ?? 0);
+            $sheet->setCellValue(chr(ord('B') + $i) . $row, (string)$choice_text);
+            if ($correct_letter === '' && $is_correct === 1) {
+                $correct_letter = $letters[$i] ?? '';
+            }
+        }
+
+        $sheet->setCellValue('G' . $row, $correct_letter);
+        $sheet->setCellValue('H' . $row, (string)($q['explanation'] ?? ''));
+        $row++;
+    }
+
+    // Border: sama style seperti template import, untuk range terpakai
+    $lastRow = max(2, $row - 1);
+    $borderStyle = [
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                'color' => ['rgb' => 'CCCCCC'],
+            ],
+        ],
+    ];
+    $sheet->getStyle('A1:H' . $lastRow)->applyFromArray($borderStyle);
+
+    // Freeze header row
+    $sheet->freezePane('A2');
+
+    // Download file
+    $safeTitle = preg_replace('/[^a-zA-Z0-9]/', '_', (string)($title_info['title'] ?? 'Soal'));
+    $safeTitle = trim($safeTitle, '_');
+    if ($safeTitle === '') {
+        $safeTitle = 'Soal';
+    }
+    $filename = 'Soal_' . $safeTitle . '_' . date('Y-m-d_His') . '.xlsx';
+
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment;filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+    header('Cache-Control: max-age=1');
+    header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+    header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+    header('Cache-Control: cache, must-revalidate');
+    header('Pragma: public');
+
+    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+    $writer->save('php://output');
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
