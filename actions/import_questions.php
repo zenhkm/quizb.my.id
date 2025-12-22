@@ -183,6 +183,16 @@ if ($act === 'import_excel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         q("INSERT INTO quiz_titles (subtheme_id, title, owner_user_id, created_at) VALUES (?, ?, ?, ?)", 
           [$subtheme_id, $new_title_name, $owner_id, now()]);
         $title_id = (int)pdo()->lastInsertId();
+
+                // Notifikasi broadcast: kuis baru
+                $subtheme_info = q("SELECT name FROM subthemes WHERE id = ?", [$subtheme_id])->fetch();
+                $subtheme_name = $subtheme_info['name'] ?? '';
+                $notif_message = "Kuis baru di subtema \"" . h($subtheme_name) . "\": \"" . h($new_title_name) . "\"";
+                $notif_link = "?page=play&title_id=" . $title_id;
+                q(
+                        "INSERT INTO broadcast_notifications (type, message, link, related_id) VALUES ('new_quiz', ?, ?, ?)",
+                        [$notif_message, $notif_link, $title_id]
+                );
         
     } else {
         // Gunakan judul yang sudah ada
