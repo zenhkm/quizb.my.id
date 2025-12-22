@@ -293,6 +293,7 @@
   }
 
   // Widget Peserta Terbaru
+    echo '<div class="small text-muted mb-1">sedang online : ' . (int)($online_count ?? 0) . '</div>';
   echo '<h5 class="widget-title">🏆 Peserta Terbaru</h5>';
   echo '<div class="list-group sidebar-widget">';
     foreach ($recent as $r) {

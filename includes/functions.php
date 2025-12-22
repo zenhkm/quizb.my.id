@@ -17,6 +17,37 @@ function uid()
   return $_SESSION['user']['id'] ?? null;
 }
 
+/**
+ * Perkiraan jumlah user/visitor yang "sedang online" berdasarkan file session
+ * yang aktif (mtime) dalam N menit terakhir.
+ *
+ * Catatan: ini menghitung session aktif (bukan hanya user login).
+ */
+function count_online_sessions(int $minutes = 5): int
+{
+  $minutes = max(1, $minutes);
+  $path = session_save_path();
+  if (!$path || !is_dir($path) || !is_readable($path)) {
+    return 0;
+  }
+
+  $threshold = time() - ($minutes * 60);
+  $files = @glob(rtrim($path, '/\\') . DIRECTORY_SEPARATOR . 'sess_*');
+  if (!$files) {
+    return 0;
+  }
+
+  $count = 0;
+  foreach ($files as $file) {
+    if (!is_file($file)) continue;
+    $mtime = @filemtime($file);
+    if ($mtime !== false && $mtime >= $threshold) {
+      $count++;
+    }
+  }
+  return $count;
+}
+
 function get_guest_id(): string
 {
   if (!isset($_COOKIE['guest_id']) || !preg_match('/^[a-f0-9]{16,64}$/', $_COOKIE['guest_id'])) {
