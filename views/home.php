@@ -293,7 +293,12 @@
   }
 
   // Widget Peserta Terbaru
-    echo '<div class="small text-muted mb-1">sedang online : ' . (int)($online_count ?? 0) . '</div>';
+    echo '<div class="card mb-2">';
+    echo '  <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between">';
+    echo '    <div class="small text-muted">Sedang online</div>';
+    echo '    <span class="badge bg-success">' . (int)($online_count ?? 0) . '</span>';
+    echo '  </div>';
+    echo '</div>';
   echo '<h5 class="widget-title">🏆 Peserta Terbaru</h5>';
   echo '<div class="list-group sidebar-widget">';
     foreach ($recent as $r) {
