@@ -11,7 +11,7 @@ if (is_admin()) {
          FROM quiz_titles qt
          JOIN subthemes st ON qt.subtheme_id = st.id
          JOIN themes t ON st.theme_id = t.id
-         WHERE qt.id = ?",
+         WHERE qt.id = ? AND qt.deleted_at IS NULL AND st.deleted_at IS NULL AND t.deleted_at IS NULL",
         [$title_id]
     )->fetch();
 } else {
@@ -22,7 +22,7 @@ if (is_admin()) {
              FROM quiz_titles qt
              JOIN subthemes st ON qt.subtheme_id = st.id
              JOIN themes t ON st.theme_id = t.id
-             WHERE qt.id = ? AND qt.owner_user_id IS NULL",
+             WHERE qt.id = ? AND qt.owner_user_id IS NULL AND qt.deleted_at IS NULL AND st.deleted_at IS NULL AND t.deleted_at IS NULL",
             [$title_id]
         )->fetch();
     } else {
@@ -32,7 +32,8 @@ if (is_admin()) {
              FROM quiz_titles qt
              JOIN subthemes st ON qt.subtheme_id = st.id
              JOIN themes t ON st.theme_id = t.id
-             WHERE qt.id = ? AND (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))",
+             WHERE qt.id = ? AND (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))
+               AND qt.deleted_at IS NULL AND st.deleted_at IS NULL AND t.deleted_at IS NULL",
             array_merge([$title_id], $allowed_teacher_ids)
         )->fetch();
     }

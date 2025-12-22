@@ -60,7 +60,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'delete_theme') {
         $id = (int)($_POST['theme_id'] ?? 0);
         if ($id > 0) {
-            q("DELETE FROM themes WHERE id=?", [$id]);
+            $ts = now();
+            q("UPDATE themes SET deleted_at=? WHERE id=?", [$ts, $id]);
+            q("UPDATE subthemes SET deleted_at=? WHERE theme_id=?", [$ts, $id]);
+            q(
+                "UPDATE quiz_titles qt JOIN subthemes st ON st.id=qt.subtheme_id SET qt.deleted_at=? WHERE st.theme_id=?",
+                [$ts, $id]
+            );
         }
         redirect('?page=crud');
     }
@@ -70,7 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id > 0) {
             $row = q("SELECT theme_id FROM subthemes WHERE id=?", [$id])->fetch();
             $theme_id = $row ? (int)$row['theme_id'] : 0;
-            q("DELETE FROM subthemes WHERE id=?", [$id]);
+            $ts = now();
+            q("UPDATE subthemes SET deleted_at=? WHERE id=?", [$ts, $id]);
+            q("UPDATE quiz_titles SET deleted_at=? WHERE subtheme_id=?", [$ts, $id]);
             redirect('?page=crud&theme_id=' . $theme_id);
         }
         redirect('?page=crud');
@@ -86,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $r2 = q("SELECT theme_id FROM subthemes WHERE id=?", [$sid])->fetch();
                 $theme_id = $r2 ? (int)$r2['theme_id'] : 0;
             }
-            q("DELETE FROM quiz_titles WHERE id=?", [$id]);
+            q("UPDATE quiz_titles SET deleted_at=? WHERE id=?", [now(), $id]);
             redirect('?page=crud&theme_id=' . $theme_id . '&subtheme_id=' . $sid);
         }
         redirect('?page=crud');
@@ -173,19 +181,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $sel_theme_id    = isset($_GET['theme_id']) ? (int)$_GET['theme_id'] : 0;
 $sel_subtheme_id = isset($_GET['subtheme_id']) ? (int)$_GET['subtheme_id'] : 0;
 
-$themes = q("SELECT id,name,description,sort_order FROM themes ORDER BY sort_order, name")->fetchAll();
+$themes = q("SELECT id,name,description,sort_order FROM themes WHERE deleted_at IS NULL ORDER BY sort_order, name")->fetchAll();
 
 $subs = [];
 if ($sel_theme_id > 0) {
-    $subs = q("SELECT id,name FROM subthemes WHERE theme_id=? ORDER BY name", [$sel_theme_id])->fetchAll();
+    $subs = q("SELECT id,name FROM subthemes WHERE theme_id=? AND deleted_at IS NULL ORDER BY name", [$sel_theme_id])->fetchAll();
 }
 
 $titles = [];
 if ($sel_subtheme_id > 0) {
-    $titles = q("SELECT id,title FROM quiz_titles WHERE subtheme_id=? ORDER BY title", [$sel_subtheme_id])->fetchAll();
+    $titles = q("SELECT id,title FROM quiz_titles WHERE subtheme_id=? AND deleted_at IS NULL ORDER BY title", [$sel_subtheme_id])->fetchAll();
 }
 
 // Siapkan data tema dalam format JSON untuk JavaScript (Modal Move)
-$themes_js = q("SELECT id, name FROM themes ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
+$themes_js = q("SELECT id, name FROM themes WHERE deleted_at IS NULL ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 
 require 'views/crud.php';

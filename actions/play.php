@@ -52,7 +52,7 @@ if (empty($allowed_teacher_ids)) {
         "SELECT qt.*,st.name subn,t.name themen FROM quiz_titles qt 
          JOIN subthemes st ON st.id=qt.subtheme_id 
          JOIN themes t ON t.id=st.theme_id 
-         WHERE qt.id=? AND qt.owner_user_id IS NULL",
+         WHERE qt.id=? AND qt.owner_user_id IS NULL AND qt.deleted_at IS NULL AND st.deleted_at IS NULL AND t.deleted_at IS NULL",
         [$title_id]
     )->fetch();
 } else {
@@ -61,7 +61,8 @@ if (empty($allowed_teacher_ids)) {
         "SELECT qt.*,st.name subn,t.name themen FROM quiz_titles qt 
          JOIN subthemes st ON st.id=qt.subtheme_id 
          JOIN themes t ON t.id=st.theme_id 
-         WHERE qt.id=? AND (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))",
+         WHERE qt.id=? AND (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))
+           AND qt.deleted_at IS NULL AND st.deleted_at IS NULL AND t.deleted_at IS NULL",
         array_merge([$title_id], $allowed_teacher_ids)
     )->fetch();
 }

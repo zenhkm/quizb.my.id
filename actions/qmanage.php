@@ -18,6 +18,7 @@ $all_titles_for_search = q("
         FROM quiz_titles qt
         JOIN subthemes st ON st.id = qt.subtheme_id
         JOIN themes t ON t.id = st.theme_id
+    WHERE qt.deleted_at IS NULL AND st.deleted_at IS NULL AND t.deleted_at IS NULL
         ORDER BY t.name, st.name, qt.title
     ")->fetchAll();
 
@@ -53,7 +54,7 @@ if ($title_id) {
       FROM quiz_titles qt
       JOIN subthemes st ON st.id = qt.subtheme_id
       JOIN themes t ON t.id = st.theme_id
-      WHERE qt.id = ?
+            WHERE qt.id = ? AND qt.deleted_at IS NULL AND st.deleted_at IS NULL AND t.deleted_at IS NULL
   ", [$title_id])->fetch();
 
     if ($title_info) {
@@ -66,6 +67,7 @@ if ($title_id) {
           FROM quiz_titles qt
           JOIN subthemes st ON st.id = qt.subtheme_id
           JOIN themes t     ON t.id = st.theme_id
+                    WHERE qt.deleted_at IS NULL AND st.deleted_at IS NULL AND t.deleted_at IS NULL
           ORDER BY t.name, st.name, qt.title
         ")->fetchAll();
 

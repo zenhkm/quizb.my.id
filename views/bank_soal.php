@@ -13,18 +13,18 @@ $selected_title = (int)($_GET['title_id'] ?? 0);
 $edit_question = (int)($_GET['edit_q'] ?? 0);
 
 // Ambil data untuk panel
-$themes = q("SELECT * FROM themes ORDER BY sort_order, name")->fetchAll();
+$themes = q("SELECT * FROM themes WHERE deleted_at IS NULL ORDER BY sort_order, name")->fetchAll();
 $subthemes = [];
 $titles = [];
 $questions = [];
 $question_detail = null;
 
 if ($selected_theme) {
-    $subthemes = q("SELECT * FROM subthemes WHERE theme_id = ? ORDER BY name", [$selected_theme])->fetchAll();
+    $subthemes = q("SELECT * FROM subthemes WHERE theme_id = ? AND deleted_at IS NULL ORDER BY name", [$selected_theme])->fetchAll();
 }
 
 if ($selected_subtheme) {
-    $titles = q("SELECT * FROM quiz_titles WHERE subtheme_id = ? ORDER BY title", [$selected_subtheme])->fetchAll();
+    $titles = q("SELECT * FROM quiz_titles WHERE subtheme_id = ? AND deleted_at IS NULL ORDER BY title", [$selected_subtheme])->fetchAll();
 }
 
 if ($selected_title) {
@@ -42,7 +42,7 @@ if ($selected_title) {
         FROM quiz_titles qt
         JOIN subthemes st ON st.id = qt.subtheme_id
         JOIN themes t ON t.id = st.theme_id
-        WHERE qt.id = ?
+        WHERE qt.id = ? AND qt.deleted_at IS NULL
     ", [$selected_title])->fetch();
 }
 

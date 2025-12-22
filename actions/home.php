@@ -19,13 +19,14 @@ $allowed_teacher_ids = get_allowed_teacher_ids_for_content();
 if (empty($allowed_teacher_ids)) {
     $latest = q("SELECT qt.id,qt.title,st.name subn FROM quiz_titles qt 
                  JOIN subthemes st ON st.id=qt.subtheme_id 
-                 WHERE qt.owner_user_id IS NULL 
+         WHERE qt.owner_user_id IS NULL AND qt.deleted_at IS NULL
                  ORDER BY qt.created_at DESC LIMIT 5")->fetchAll();
 } else {
     $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
     $latest = q("SELECT qt.id,qt.title,st.name subn FROM quiz_titles qt 
                  JOIN subthemes st ON st.id=qt.subtheme_id 
-                 WHERE qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders)
+                 WHERE (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))
+                   AND qt.deleted_at IS NULL
                  ORDER BY qt.created_at DESC LIMIT 5",
                 $allowed_teacher_ids)->fetchAll();
 }
@@ -43,8 +44,11 @@ if (empty($allowed_teacher_ids)) {
           LEFT JOIN subthemes s ON t.id = s.theme_id
           LEFT JOIN quiz_titles qt ON s.id = qt.subtheme_id
           WHERE t.owner_user_id IS NULL
+            AND t.deleted_at IS NULL
             AND (s.owner_user_id IS NULL OR s.id IS NULL)
+            AND (s.deleted_at IS NULL OR s.id IS NULL)
             AND (qt.owner_user_id IS NULL OR qt.id IS NULL)
+            AND (qt.deleted_at IS NULL OR qt.id IS NULL)
           ORDER BY t.sort_order, t.name, s.name, qt.title
       ";
     $flat_data = q($searchable_items_sql)->fetchAll();
@@ -59,8 +63,11 @@ if (empty($allowed_teacher_ids)) {
           LEFT JOIN subthemes s ON t.id = s.theme_id
           LEFT JOIN quiz_titles qt ON s.id = qt.subtheme_id
           WHERE (t.owner_user_id IS NULL OR t.owner_user_id IN ($placeholders))
+            AND t.deleted_at IS NULL
             AND (s.owner_user_id IS NULL OR s.id IS NULL OR s.owner_user_id IN ($placeholders))
+            AND (s.deleted_at IS NULL OR s.id IS NULL)
             AND (qt.owner_user_id IS NULL OR qt.id IS NULL OR qt.owner_user_id IN ($placeholders))
+            AND (qt.deleted_at IS NULL OR qt.id IS NULL)
           ORDER BY t.sort_order, t.name, s.name, qt.title
       ";
     $flat_data = q($searchable_items_sql, array_merge($allowed_teacher_ids, $allowed_teacher_ids, $allowed_teacher_ids))->fetchAll();
@@ -96,12 +103,12 @@ $allowed_teacher_ids = get_allowed_teacher_ids_for_content();
 
 if (empty($allowed_teacher_ids)) {
     // Hanya tampilkan tema global
-    $themes = q("SELECT id, name FROM themes WHERE owner_user_id IS NULL ORDER BY sort_order, name")->fetchAll();
+  $themes = q("SELECT id, name FROM themes WHERE owner_user_id IS NULL AND deleted_at IS NULL ORDER BY sort_order, name")->fetchAll();
 } else {
     // Tampilkan tema global + tema dari pengajar yang diizinkan
     $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
     $themes = q(
-        "SELECT id, name FROM themes WHERE owner_user_id IS NULL OR owner_user_id IN ($placeholders) ORDER BY sort_order, name",
+      "SELECT id, name FROM themes WHERE (owner_user_id IS NULL OR owner_user_id IN ($placeholders)) AND deleted_at IS NULL ORDER BY sort_order, name",
         $allowed_teacher_ids
     )->fetchAll();
 }

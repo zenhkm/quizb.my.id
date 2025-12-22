@@ -30,6 +30,9 @@ require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/layout.php';
 require_once __DIR__ . '/wa.php';
 
+// Ensure soft-delete columns exist (safe ALTERs).
+ensure_soft_delete_schema();
+
 // === SESSION: sangat awal, sebelum ada output apa pun ===
 if (session_status() === PHP_SESSION_NONE) {
 
@@ -1162,6 +1165,9 @@ case 'kelola_institusi': // Nama halaman baru untuk institusi & kelas
   case 'crud':
     require 'actions/crud.php';
     break;
+  case 'bin':
+    require 'actions/bin.php';
+    break;
   case 'about':
     view_about();
     break;
@@ -1578,6 +1584,9 @@ function api_get_page_content()
     case 'teacher_bank_soal':
       // Bank soal untuk pengajar
       require 'views/teacher_bank_soal.php';
+      break;
+    case 'bin':
+      require 'actions/bin.php';
       break;
     /* ▼▼▼ TAMBAHKAN KASUS BARU UNTUK HALAMAN TUGAS INI ▼▼▼ */
     case 'student_tasks':

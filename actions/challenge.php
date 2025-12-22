@@ -7,7 +7,11 @@ if (!$row) {
     echo '<div class="alert alert-warning">Tantangan tidak ditemukan.</div>';
     return;
 }
-$title = q("SELECT * FROM quiz_titles WHERE id=?", [$row['title_id']])->fetch();
+$title = q("SELECT * FROM quiz_titles WHERE id=? AND deleted_at IS NULL", [$row['title_id']])->fetch();
+if (!$title) {
+    echo '<div class="alert alert-warning">Kuis untuk tantangan ini tidak tersedia.</div>';
+    return;
+}
 
 // === PAPAN SKOR (Top 10) — dengan medali & highlight "Anda" ===
 $leaders = q("SELECT 

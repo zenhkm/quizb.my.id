@@ -18,7 +18,14 @@ if ($act === 'get_subthemes' && isset($_GET['theme_id'])) {
     
     header('Content-Type: application/json');
     $theme_id = (int)$_GET['theme_id'];
-    $subthemes = q("SELECT id, name FROM subthemes WHERE theme_id = ? ORDER BY name", [$theme_id])->fetchAll();
+    $subthemes = q(
+        "SELECT st.id, st.name
+         FROM subthemes st
+         JOIN themes t ON t.id = st.theme_id
+         WHERE st.theme_id = ? AND st.deleted_at IS NULL AND t.deleted_at IS NULL
+         ORDER BY st.name",
+        [$theme_id]
+    )->fetchAll();
     echo json_encode($subthemes);
     exit;
 }
@@ -172,8 +179,14 @@ if ($act === 'import_excel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('?page=import_questions&error=' . urlencode('Data judul baru tidak lengkap.'));
         }
         
-        // Cek apakah subtheme valid
-        $subtheme_check = q("SELECT theme_id FROM subthemes WHERE id = ?", [$subtheme_id])->fetch();
+        // Cek apakah subtheme valid (tidak terhapus)
+        $subtheme_check = q(
+            "SELECT st.theme_id
+             FROM subthemes st
+             JOIN themes t ON t.id = st.theme_id
+             WHERE st.id = ? AND st.deleted_at IS NULL AND t.deleted_at IS NULL",
+            [$subtheme_id]
+        )->fetch();
         if (!$subtheme_check) {
             redirect('?page=import_questions&error=' . urlencode('Subtema tidak ditemukan.'));
         }
@@ -205,13 +218,13 @@ if ($act === 'import_excel' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Cek kepemilikan title (untuk pengajar)
         if (!is_admin()) {
-            $title_check = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ?", [$title_id, $user_id])->fetch();
+            $title_check = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ? AND deleted_at IS NULL", [$title_id, $user_id])->fetch();
             if (!$title_check) {
                 redirect('?page=import_questions&error=' . urlencode('Anda tidak memiliki akses ke judul soal ini.'));
             }
         } else {
             // Cek apakah title_id valid untuk admin
-            $title_check = q("SELECT id FROM quiz_titles WHERE id = ?", [$title_id])->fetch();
+            $title_check = q("SELECT id FROM quiz_titles WHERE id = ? AND deleted_at IS NULL", [$title_id])->fetch();
             if (!$title_check) {
                 redirect('?page=import_questions&error=' . urlencode('Judul soal tidak ditemukan.'));
             }

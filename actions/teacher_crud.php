@@ -23,7 +23,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'delete_theme') {
         $id = (int)($_POST['theme_id'] ?? 0);
         if ($id > 0) {
-            q("DELETE FROM themes WHERE id=? AND owner_user_id=?", [$id, $user_id]);
+            $ts = now();
+            q("UPDATE themes SET deleted_at=? WHERE id=? AND owner_user_id=?", [$ts, $id, $user_id]);
+            q("UPDATE subthemes SET deleted_at=? WHERE theme_id=? AND owner_user_id=?", [$ts, $id, $user_id]);
+            q(
+                "UPDATE quiz_titles qt JOIN subthemes st ON st.id=qt.subtheme_id SET qt.deleted_at=? WHERE st.theme_id=? AND qt.owner_user_id=? AND st.owner_user_id=?",
+                [$ts, $id, $user_id, $user_id]
+            );
         }
         redirect('?page=teacher_crud&ok=1');
     }
@@ -49,7 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id > 0) {
             $row = q("SELECT theme_id FROM subthemes WHERE id=? AND owner_user_id=?", [$id, $user_id])->fetch();
             $theme_id = $row ? (int)$row['theme_id'] : 0;
-            q("DELETE FROM subthemes WHERE id=? AND owner_user_id=?", [$id, $user_id]);
+            $ts = now();
+            q("UPDATE subthemes SET deleted_at=? WHERE id=? AND owner_user_id=?", [$ts, $id, $user_id]);
+            q("UPDATE quiz_titles SET deleted_at=? WHERE subtheme_id=? AND owner_user_id=?", [$ts, $id, $user_id]);
         }
         redirect('?page=teacher_crud&theme_id=' . $theme_id . '&ok=1');
     }
@@ -86,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id > 0) {
             $row = q("SELECT subtheme_id FROM quiz_titles WHERE id=? AND owner_user_id=?", [$id, $user_id])->fetch();
             $subtheme_id = $row ? (int)$row['subtheme_id'] : 0;
-            q("DELETE FROM quiz_titles WHERE id=? AND owner_user_id=?", [$id, $user_id]);
+            q("UPDATE quiz_titles SET deleted_at=? WHERE id=? AND owner_user_id=?", [now(), $id, $user_id]);
         }
         redirect('?page=teacher_crud&subtheme_id=' . $subtheme_id . '&ok=1');
     }
@@ -129,16 +137,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $sel_theme_id    = isset($_GET['theme_id']) ? (int)$_GET['theme_id'] : 0;
 $sel_subtheme_id = isset($_GET['subtheme_id']) ? (int)$_GET['subtheme_id'] : 0;
 
-$themes = q("SELECT id,name FROM themes WHERE owner_user_id = ? ORDER BY name", [$user_id])->fetchAll();
+$themes = q("SELECT id,name FROM themes WHERE owner_user_id = ? AND deleted_at IS NULL ORDER BY name", [$user_id])->fetchAll();
 
 $subs = [];
 if ($sel_theme_id > 0) {
-    $subs = q("SELECT id,name FROM subthemes WHERE theme_id=? AND owner_user_id = ? ORDER BY name", [$sel_theme_id, $user_id])->fetchAll();
+    $subs = q("SELECT id,name FROM subthemes WHERE theme_id=? AND owner_user_id = ? AND deleted_at IS NULL ORDER BY name", [$sel_theme_id, $user_id])->fetchAll();
 }
 
 $titles = [];
 if ($sel_subtheme_id > 0) {
-    $titles = q("SELECT id,title FROM quiz_titles WHERE subtheme_id=? AND owner_user_id = ? ORDER BY title", [$sel_subtheme_id, $user_id])->fetchAll();
+    $titles = q("SELECT id,title FROM quiz_titles WHERE subtheme_id=? AND owner_user_id = ? AND deleted_at IS NULL ORDER BY title", [$sel_subtheme_id, $user_id])->fetchAll();
 }
 
 require 'views/teacher_crud.php';

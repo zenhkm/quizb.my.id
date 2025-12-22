@@ -72,7 +72,7 @@ function html_head()
 
   // Kustomisasi jika sedang di halaman kuis spesifik
   if ($page === 'play' && !empty($_GET['title_id'])) {
-    $title_info = q("SELECT title FROM quiz_titles WHERE id=?", [$_GET['title_id']])->fetch();
+    $title_info = q("SELECT title FROM quiz_titles WHERE id=? AND deleted_at IS NULL", [$_GET['title_id']])->fetch();
     if ($title_info) {
       $og_title = 'Mulai Kuis: ' . h($title_info['title']) . ' | QuizB';
       $og_description = 'Seberapa jauh pengetahuanmu tentang ' . h($title_info['title']) . '? Mainkan kuisnya sekarang di QuizB dan raih skor tertinggi!';
@@ -1043,7 +1043,7 @@ JS;
   // Kembalikan output normal head/body — pastikan tiap view menutup div sendiri
   // Beri body class "backend" untuk halaman admin/kelola agar styling spesifik bisa diterapkan
   $page = $_GET['page'] ?? 'home';
-  $backendPages = ['crud','qmanage','teacher_crud','teacher_qmanage','admin'];
+  $backendPages = ['crud','qmanage','teacher_crud','teacher_qmanage','admin','bin'];
   // Anggap juga halaman profile sebagai backend jika yang melihat adalah admin
   $isBackend = in_array($page, $backendPages, true) || ($page === 'profile' && is_admin());
   $is_play_active = ($page === 'play') && isset($_SESSION['quiz']['session_id']);
@@ -1105,6 +1105,7 @@ HTML;
     echo '    <li class="nav-item"><a class="nav-link" href="?page=broadcast">Broadcast</a></li>';
     echo '    <li class="nav-item"><a class="nav-link" href="?page=bank_soal">Bank Soal</a></li>';
     echo '    <li class="nav-item"><a class="nav-link" href="?page=import_questions">Import Soal</a></li>';
+    echo '    <li class="nav-item"><a class="nav-link" href="?page=bin">Bin</a></li>';
 
     // ▼▼▼ TAMBAHKAN BLOK BARU INI ▼▼▼
     // Tampilkan menu ini HANYA jika pengguna adalah Pengajar
@@ -1126,6 +1127,7 @@ if (($_SESSION['user']['role'] ?? '') === 'pengajar') {
       echo '<li class="nav-item"><a class="nav-link" href="?page=kelola_institusi">Kelola Institusi & Kelas</a></li>';
       echo '<li class="nav-item"><a class="nav-link" href="?page=teacher_bank_soal">Bank Soal Saya</a></li>';
       echo '<li class="nav-item"><a class="nav-link" href="?page=import_questions">Import Soal</a></li>';
+      echo '<li class="nav-item"><a class="nav-link" href="?page=bin">Bin</a></li>';
     } elseif ($user_role === 'pelajar') {
       // ▼▼▼ INI MENU BARU UNTUK SISWA ▼▼▼
       echo '<li class="nav-item"><a class="nav-link" href="?page=student_tasks">Daftar Tugas</a></li>';

@@ -52,41 +52,14 @@ if ($act === 'delete_theme') {
     if ($id > 0) {
         $is_owner = q("SELECT id FROM themes WHERE id=? AND owner_user_id=?", [$id, $user_id])->fetch();
         if ($is_owner) {
-            // Cascade delete: subthemes -> titles -> questions -> choices
-            $sub_ids = q("SELECT id FROM subthemes WHERE theme_id=? AND owner_user_id=?", [$id, $user_id])->fetchAll(PDO::FETCH_COLUMN);
-            if (!empty($sub_ids)) {
-                $sub_placeholders = implode(',', array_fill(0, count($sub_ids), '?'));
-                $title_ids = q(
-                    "SELECT id FROM quiz_titles WHERE subtheme_id IN ($sub_placeholders) AND owner_user_id=?",
-                    array_merge($sub_ids, [$user_id])
-                )->fetchAll(PDO::FETCH_COLUMN);
-                if (!empty($title_ids)) {
-                    $title_placeholders = implode(',', array_fill(0, count($title_ids), '?'));
-                    $q_ids = q(
-                        "SELECT id FROM questions WHERE title_id IN ($title_placeholders) AND owner_user_id=?",
-                        array_merge($title_ids, [$user_id])
-                    )->fetchAll(PDO::FETCH_COLUMN);
-                    if (!empty($q_ids)) {
-                        $q_placeholders = implode(',', array_fill(0, count($q_ids), '?'));
-                        q("DELETE FROM choices WHERE question_id IN ($q_placeholders)", $q_ids);
-                        q(
-                            "DELETE FROM questions WHERE id IN ($q_placeholders) AND owner_user_id=?",
-                            array_merge($q_ids, [$user_id])
-                        );
-                    }
-                    q(
-                        "DELETE FROM quiz_titles WHERE id IN ($title_placeholders) AND owner_user_id=?",
-                        array_merge($title_ids, [$user_id])
-                    );
-                }
-                q(
-                    "DELETE FROM subthemes WHERE id IN ($sub_placeholders) AND owner_user_id=?",
-                    array_merge($sub_ids, [$user_id])
-                );
-            }
-
-            q("DELETE FROM themes WHERE id=? AND owner_user_id=?", [$id, $user_id]);
-            header("Location: ?page=teacher_bank_soal&success=1&msg=" . urlencode('Tema berhasil dihapus'));
+            $ts = now();
+            q("UPDATE themes SET deleted_at=? WHERE id=? AND owner_user_id=?", [$ts, $id, $user_id]);
+            q("UPDATE subthemes SET deleted_at=? WHERE theme_id=? AND owner_user_id=?", [$ts, $id, $user_id]);
+            q(
+                "UPDATE quiz_titles qt JOIN subthemes st ON st.id=qt.subtheme_id SET qt.deleted_at=? WHERE st.theme_id=? AND qt.owner_user_id=? AND st.owner_user_id=?",
+                [$ts, $id, $user_id, $user_id]
+            );
+            header("Location: ?page=teacher_bank_soal&success=1&msg=" . urlencode('Tema dipindahkan ke Bin'));
             exit;
         }
     }
@@ -132,31 +105,10 @@ if ($act === 'delete_subtheme') {
         $row = q("SELECT theme_id FROM subthemes WHERE id=? AND owner_user_id=?", [$id, $user_id])->fetch();
         if ($row) {
             $theme_id = (int)$row['theme_id'];
-
-            // Cascade delete: titles -> questions -> choices
-            $title_ids = q("SELECT id FROM quiz_titles WHERE subtheme_id=? AND owner_user_id=?", [$id, $user_id])->fetchAll(PDO::FETCH_COLUMN);
-            if (!empty($title_ids)) {
-                $title_placeholders = implode(',', array_fill(0, count($title_ids), '?'));
-                $q_ids = q(
-                    "SELECT id FROM questions WHERE title_id IN ($title_placeholders) AND owner_user_id=?",
-                    array_merge($title_ids, [$user_id])
-                )->fetchAll(PDO::FETCH_COLUMN);
-                if (!empty($q_ids)) {
-                    $q_placeholders = implode(',', array_fill(0, count($q_ids), '?'));
-                    q("DELETE FROM choices WHERE question_id IN ($q_placeholders)", $q_ids);
-                    q(
-                        "DELETE FROM questions WHERE id IN ($q_placeholders) AND owner_user_id=?",
-                        array_merge($q_ids, [$user_id])
-                    );
-                }
-                q(
-                    "DELETE FROM quiz_titles WHERE id IN ($title_placeholders) AND owner_user_id=?",
-                    array_merge($title_ids, [$user_id])
-                );
-            }
-
-            q("DELETE FROM subthemes WHERE id=? AND owner_user_id=?", [$id, $user_id]);
-            header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&success=1&msg=" . urlencode('Subtema berhasil dihapus'));
+            $ts = now();
+            q("UPDATE subthemes SET deleted_at=? WHERE id=? AND owner_user_id=?", [$ts, $id, $user_id]);
+            q("UPDATE quiz_titles SET deleted_at=? WHERE subtheme_id=? AND owner_user_id=?", [$ts, $id, $user_id]);
+            header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&success=1&msg=" . urlencode('Subtema dipindahkan ke Bin'));
             exit;
         }
     }
@@ -217,15 +169,8 @@ if ($act == 'delete_title') {
     // Verify ownership
     $check = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ?", [$title_id, $user_id])->fetch();
     if ($check) {
-        // Delete questions first (cascade)
-        $questions = q("SELECT id FROM questions WHERE title_id = ? AND owner_user_id = ?", [$title_id, $user_id])->fetchAll();
-        foreach ($questions as $q) {
-            q("DELETE FROM choices WHERE question_id = ?", [$q['id']]);
-        }
-        q("DELETE FROM questions WHERE title_id = ? AND owner_user_id = ?", [$title_id, $user_id]);
-        q("DELETE FROM quiz_titles WHERE id = ? AND owner_user_id = ?", [$title_id, $user_id]);
-        
-        header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&subtheme_id=$subtheme_id&success=1&msg=Judul berhasil dihapus");
+        q("UPDATE quiz_titles SET deleted_at=? WHERE id = ? AND owner_user_id = ?", [now(), $title_id, $user_id]);
+        header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&subtheme_id=$subtheme_id&success=1&msg=Judul dipindahkan ke Bin");
     } else {
         header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&subtheme_id=$subtheme_id");
     }

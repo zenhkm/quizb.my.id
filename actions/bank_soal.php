@@ -31,7 +31,7 @@ if ($act === 'download_excel') {
          FROM quiz_titles qt
          JOIN subthemes st ON st.id = qt.subtheme_id
          JOIN themes t ON t.id = st.theme_id
-         WHERE qt.id = ?",
+         WHERE qt.id = ? AND qt.deleted_at IS NULL",
         [$title_id]
     )->fetch();
 
@@ -188,8 +188,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'delete_theme') {
         $id = (int)($_POST['theme_id'] ?? 0);
         if ($id > 0) {
-            q("DELETE FROM themes WHERE id=?", [$id]);
-            redirect('?page=bank_soal&success=1&msg=' . urlencode('Tema berhasil dihapus'));
+            $ts = now();
+            q("UPDATE themes SET deleted_at=? WHERE id=?", [$ts, $id]);
+            q("UPDATE subthemes SET deleted_at=? WHERE theme_id=?", [$ts, $id]);
+            q(
+                "UPDATE quiz_titles qt JOIN subthemes st ON st.id=qt.subtheme_id SET qt.deleted_at=? WHERE st.theme_id=?",
+                [$ts, $id]
+            );
+            redirect('?page=bank_soal&success=1&msg=' . urlencode('Tema dipindahkan ke Bin'));
         }
         redirect('?page=bank_soal');
     }
@@ -222,8 +228,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id > 0) {
             $row = q("SELECT theme_id FROM subthemes WHERE id=?", [$id])->fetch();
             $theme_id = $row ? (int)$row['theme_id'] : 0;
-            q("DELETE FROM subthemes WHERE id=?", [$id]);
-            redirect('?page=bank_soal&theme_id=' . $theme_id . '&success=1&msg=' . urlencode('Subtema berhasil dihapus'));
+            $ts = now();
+            q("UPDATE subthemes SET deleted_at=? WHERE id=?", [$ts, $id]);
+            q("UPDATE quiz_titles SET deleted_at=? WHERE subtheme_id=?", [$ts, $id]);
+            redirect('?page=bank_soal&theme_id=' . $theme_id . '&success=1&msg=' . urlencode('Subtema dipindahkan ke Bin'));
         }
         redirect('?page=bank_soal');
     }
@@ -273,8 +281,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $subtheme_id = (int)($_POST['subtheme_id'] ?? 0);
         
         if ($id > 0) {
-            q("DELETE FROM quiz_titles WHERE id=?", [$id]);
-            redirect('?page=bank_soal&theme_id=' . $theme_id . '&subtheme_id=' . $subtheme_id . '&success=1&msg=' . urlencode('Judul berhasil dihapus'));
+            q("UPDATE quiz_titles SET deleted_at=? WHERE id=?", [now(), $id]);
+            redirect('?page=bank_soal&theme_id=' . $theme_id . '&subtheme_id=' . $subtheme_id . '&success=1&msg=' . urlencode('Judul dipindahkan ke Bin'));
         }
         redirect('?page=bank_soal');
     }

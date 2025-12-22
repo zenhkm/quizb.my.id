@@ -14,7 +14,7 @@ $selected_title = (int)($_GET['title_id'] ?? 0);
 $edit_question = (int)($_GET['edit_q'] ?? 0);
 
 // Ambil data untuk panel - HANYA konten milik pengajar (owner_user_id = uid)
-$themes = q("SELECT * FROM themes WHERE owner_user_id = ? ORDER BY sort_order, name", [$user_id])->fetchAll();
+$themes = q("SELECT * FROM themes WHERE owner_user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name", [$user_id])->fetchAll();
 $subthemes = [];
 $titles = [];
 $questions = [];
@@ -22,20 +22,20 @@ $question_detail = null;
 
 if ($selected_theme) {
     $subthemes = q(
-        "SELECT * FROM subthemes WHERE theme_id = ? AND owner_user_id = ? ORDER BY name",
+        "SELECT * FROM subthemes WHERE theme_id = ? AND owner_user_id = ? AND deleted_at IS NULL ORDER BY name",
         [$selected_theme, $user_id]
     )->fetchAll();
 }
 
 if ($selected_subtheme) {
     // HANYA judul milik pengajar
-    $titles = q("SELECT * FROM quiz_titles WHERE subtheme_id = ? AND owner_user_id = ? ORDER BY title", 
+    $titles = q("SELECT * FROM quiz_titles WHERE subtheme_id = ? AND owner_user_id = ? AND deleted_at IS NULL ORDER BY title", 
                 [$selected_subtheme, $user_id])->fetchAll();
 }
 
 if ($selected_title) {
     // Verifikasi ownership
-    $title_check = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ?", [$selected_title, $user_id])->fetch();
+    $title_check = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ? AND deleted_at IS NULL", [$selected_title, $user_id])->fetch();
     if (!$title_check) {
         echo '<div class="alert alert-danger">Anda tidak memiliki akses ke judul ini.</div>';
         return;
@@ -57,6 +57,7 @@ if ($selected_title) {
         JOIN themes t ON t.id = st.theme_id
         WHERE qt.id = ?
           AND qt.owner_user_id = ?
+                    AND qt.deleted_at IS NULL
     ", [$selected_title, $user_id])->fetch();
 }
 

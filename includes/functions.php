@@ -411,15 +411,15 @@ function breadcrumb_trail()
   if (in_array($page, ['themes', 'subthemes', 'titles', 'play'])) {
     $theme = null; $sub = null; $title = null;
     if (!empty($_GET['theme_id'])) {
-        $theme = q("SELECT id,name FROM themes WHERE id=?", [$_GET['theme_id']])->fetch(PDO::FETCH_ASSOC);
+      $theme = q("SELECT id,name FROM themes WHERE id=? AND deleted_at IS NULL", [$_GET['theme_id']])->fetch(PDO::FETCH_ASSOC);
         if ($theme) $trail[] = ['name' => $theme['name'], 'url' => base_url() . '?page=subthemes&theme_id=' . $theme['id']];
     }
     if (!empty($_GET['subtheme_id'])) {
-        $sub = q("SELECT id,name,theme_id FROM subthemes WHERE id=?", [$_GET['subtheme_id']])->fetch(PDO::FETCH_ASSOC);
+      $sub = q("SELECT id,name,theme_id FROM subthemes WHERE id=? AND deleted_at IS NULL", [$_GET['subtheme_id']])->fetch(PDO::FETCH_ASSOC);
         if ($sub) $trail[] = ['name' => $sub['name'], 'url' => base_url() . '?page=titles&subtheme_id=' . $sub['id']];
     }
     if (!empty($_GET['title_id'])) {
-        $title = q("SELECT id,title FROM quiz_titles WHERE id=?", [$_GET['title_id']])->fetch(PDO::FETCH_ASSOC);
+      $title = q("SELECT id,title FROM quiz_titles WHERE id=? AND deleted_at IS NULL", [$_GET['title_id']])->fetch(PDO::FETCH_ASSOC);
         if ($title) $trail[] = ['name' => $title['title'], 'url' => base_url() . '?page=play&title_id=' . $title['id']];
     }
   }
@@ -475,6 +475,28 @@ function breadcrumb_trail()
       $trail[] = ['name' => 'Pengaturan', 'url' => base_url() . '?page=setting'];
   }
   return $trail;
+}
+
+// ============================================================
+// Soft-delete / Bin (Recycle)
+// ============================================================
+function ensure_soft_delete_schema()
+{
+  static $done = false;
+  if ($done) return;
+  $done = true;
+
+  $tables = ['themes', 'subthemes', 'quiz_titles'];
+  foreach ($tables as $table) {
+    try {
+      pdo()->exec("ALTER TABLE {$table} ADD COLUMN deleted_at DATETIME NULL");
+    } catch (\PDOException $e) {
+      // 42S21 = Duplicate column name
+      if ($e->getCode() !== '42S21') {
+        throw $e;
+      }
+    }
+  }
 }
 
 function echo_breadcrumb_jsonld()

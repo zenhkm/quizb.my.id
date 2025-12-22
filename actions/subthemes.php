@@ -5,7 +5,7 @@
 $theme_id = (int)($_GET['theme_id'] ?? 0);
 
 // 2. Dapatkan informasi tema untuk judul halaman
-$theme = q("SELECT id, name FROM themes WHERE id = ?", [$theme_id])->fetch();
+$theme = q("SELECT id, name FROM themes WHERE id = ? AND deleted_at IS NULL", [$theme_id])->fetch();
 if (!$theme) {
     echo '<div class="alert alert-warning">Tema tidak ditemukan.</div>';
     return;
@@ -18,11 +18,11 @@ $allowed_teacher_ids = get_allowed_teacher_ids_for_content();
 
 // 4. Query subtema dengan filter owner_user_id
 if (empty($allowed_teacher_ids)) {
-    $subthemes = q("SELECT id, name FROM subthemes WHERE theme_id = ? AND owner_user_id IS NULL ORDER BY name", [$theme_id])->fetchAll();
+    $subthemes = q("SELECT id, name FROM subthemes WHERE theme_id = ? AND owner_user_id IS NULL AND deleted_at IS NULL ORDER BY name", [$theme_id])->fetchAll();
 } else {
     $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
     $subthemes = q(
-        "SELECT id, name FROM subthemes WHERE theme_id = ? AND (owner_user_id IS NULL OR owner_user_id IN ($placeholders)) ORDER BY name",
+        "SELECT id, name FROM subthemes WHERE theme_id = ? AND (owner_user_id IS NULL OR owner_user_id IN ($placeholders)) AND deleted_at IS NULL ORDER BY name",
         array_merge([$theme_id], $allowed_teacher_ids)
     )->fetchAll();
 }

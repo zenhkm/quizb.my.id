@@ -32,7 +32,10 @@ $searchable_items_sql = "
       FROM themes t
       LEFT JOIN subthemes s ON t.id = s.theme_id
       LEFT JOIN quiz_titles qt ON s.id = qt.subtheme_id
-      WHERE 1=1 $owner_filter
+    WHERE t.deleted_at IS NULL
+    AND (s.deleted_at IS NULL OR s.id IS NULL)
+    AND (qt.deleted_at IS NULL OR qt.id IS NULL)
+    $owner_filter
       ORDER BY t.sort_order, t.name, s.name, qt.title
   ";
 
@@ -100,7 +103,8 @@ $all_titles_sql = "
       JOIN themes t ON st.theme_id = t.id
       LEFT JOIN results r ON qt.id = r.title_id
       /* KRITIS: Filter Judul, Subtema, dan Tema sesuai owner_user_id */
-      WHERE (t.owner_user_id IS NULL OR " . (count($allowed_teacher_ids) > 0 ? "t.owner_user_id IN (" . implode(',', array_fill(0, count($allowed_teacher_ids), '?')) . ")" : "FALSE") . ")
+      WHERE t.deleted_at IS NULL AND st.deleted_at IS NULL AND qt.deleted_at IS NULL
+        AND (t.owner_user_id IS NULL OR " . (count($allowed_teacher_ids) > 0 ? "t.owner_user_id IN (" . implode(',', array_fill(0, count($allowed_teacher_ids), '?')) . ")" : "FALSE") . ")
         AND (st.owner_user_id IS NULL OR " . (count($allowed_teacher_ids) > 0 ? "st.owner_user_id IN (" . implode(',', array_fill(0, count($allowed_teacher_ids), '?')) . ")" : "FALSE") . ")
         AND (qt.owner_user_id IS NULL OR " . (count($allowed_teacher_ids) > 0 ? "qt.owner_user_id IN (" . implode(',', array_fill(0, count($allowed_teacher_ids), '?')) . ")" : "FALSE") . ")
       GROUP BY qt.id, qt.title, st.name, t.name

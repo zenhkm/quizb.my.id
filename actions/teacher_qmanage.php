@@ -14,7 +14,13 @@ $redirect_qmanage = function($title_id, $ok = 1) {
 
 // Fungsi untuk memverifikasi kepemilikan soal
 $get_title_id_and_verify = function($qid) use ($user_id) {
-    $q_info = q("SELECT title_id FROM questions WHERE id=? AND owner_user_id=?", [$qid, $user_id])->fetch();
+    $q_info = q(
+        "SELECT q.title_id
+         FROM questions q
+         JOIN quiz_titles qt ON qt.id = q.title_id
+         WHERE q.id=? AND q.owner_user_id=? AND qt.deleted_at IS NULL",
+        [$qid, $user_id]
+    )->fetch();
     if (!$q_info) return 0;
     return (int)$q_info['title_id'];
 };
@@ -28,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $choices = $_POST['choice_text'] ?? [];
         $correct_index = (int)($_POST['correct_index'] ?? 1);
 
-        $is_owner = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ?", [$title_id, $user_id])->fetch();
+        $is_owner = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ? AND deleted_at IS NULL", [$title_id, $user_id])->fetch();
         if (!$is_owner) redirect('?page=teacher_qmanage');
         
         q("INSERT INTO questions (title_id, owner_user_id, text, explanation, created_at) VALUES (?,?,?,?,?)", [$title_id, $user_id, $text, ($exp ?: null), now()]);
@@ -121,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $target_title_id = (int)($_POST['target_title_id'] ?? 0);
         $num_questions = (int)($_POST['num_questions'] ?? 0);
         
-        $is_target_owner = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ?", [$target_title_id, $user_id])->fetch();
+        $is_target_owner = q("SELECT id FROM quiz_titles WHERE id = ? AND owner_user_id = ? AND deleted_at IS NULL", [$target_title_id, $user_id])->fetch();
         if (!$is_target_owner) redirect('?page=teacher_crud&err=not_owner');
 
         $is_master = q("SELECT id FROM quiz_titles WHERE id = ? AND is_master = 1", [$master_title_id])->fetch();
