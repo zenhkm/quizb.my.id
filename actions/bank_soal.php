@@ -85,6 +85,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($subtheme_id > 0 && $title !== '') {
             q("INSERT INTO quiz_titles (subtheme_id, title) VALUES (?,?)", [$subtheme_id, $title]);
             $new_id = (int)pdo()->lastInsertId();
+
+            // Notifikasi broadcast: kuis baru
+            $subtheme_info = q("SELECT name FROM subthemes WHERE id = ?", [$subtheme_id])->fetch();
+            $subtheme_name = $subtheme_info['name'] ?? '';
+            $notif_message = "Kuis baru di subtema \"" . h($subtheme_name) . "\": \"" . h($title) . "\"";
+            $notif_link = "?page=play&title_id=" . $new_id;
+            q(
+                "INSERT INTO broadcast_notifications (type, message, link, related_id) VALUES ('new_quiz', ?, ?, ?)",
+                [$notif_message, $notif_link, $new_id]
+            );
             
             // Get theme_id
             $sub = q("SELECT theme_id FROM subthemes WHERE id=?", [$subtheme_id])->fetch();

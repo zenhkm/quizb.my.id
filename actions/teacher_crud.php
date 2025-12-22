@@ -64,6 +64,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($is_owner && $title !== '') {
             q("INSERT INTO quiz_titles (subtheme_id, title, owner_user_id) VALUES (?,?,?)", [$subtheme_id, $title, $user_id]);
             $new_id = pdo()->lastInsertId();
+
+            // Notifikasi broadcast: kuis baru
+            $subtheme_info = q("SELECT name FROM subthemes WHERE id = ? AND owner_user_id = ?", [$subtheme_id, $user_id])->fetch();
+            $subtheme_name = $subtheme_info['name'] ?? '';
+            $notif_message = "Kuis baru di subtema \"" . h($subtheme_name) . "\": \"" . h($title) . "\"";
+            $notif_link = "?page=play&title_id=" . (int)$new_id;
+            q(
+                "INSERT INTO broadcast_notifications (type, message, link, related_id) VALUES ('new_quiz', ?, ?, ?)",
+                [$notif_message, $notif_link, (int)$new_id]
+            );
+
             $url_redirect = '?page=teacher_qmanage&title_id=' . $new_id;
         }
         redirect($url_redirect);

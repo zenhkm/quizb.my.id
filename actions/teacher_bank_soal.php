@@ -173,6 +173,18 @@ if ($act == 'add_title') {
     if ($title && $subtheme_id) {
         q("INSERT INTO quiz_titles (subtheme_id, title, owner_user_id) VALUES (?, ?, ?)", 
           [$subtheme_id, $title, $user_id]);
+
+                // Notifikasi broadcast: kuis baru
+                $new_id = (int)pdo()->lastInsertId();
+                $subtheme_info = q("SELECT name FROM subthemes WHERE id = ? AND owner_user_id = ?", [$subtheme_id, $user_id])->fetch();
+                $subtheme_name = $subtheme_info['name'] ?? '';
+                $notif_message = "Kuis baru di subtema \"" . h($subtheme_name) . "\": \"" . h($title) . "\"";
+                $notif_link = "?page=play&title_id=" . $new_id;
+                q(
+                    "INSERT INTO broadcast_notifications (type, message, link, related_id) VALUES ('new_quiz', ?, ?, ?)",
+                    [$notif_message, $notif_link, $new_id]
+                );
+
         header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&subtheme_id=$subtheme_id&success=1&msg=Judul berhasil ditambahkan");
     } else {
         header("Location: ?page=teacher_bank_soal&theme_id=$theme_id&subtheme_id=$subtheme_id");
