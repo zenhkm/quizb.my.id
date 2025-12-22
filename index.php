@@ -616,6 +616,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_titles') {
 if (isset($_GET['action']) && $_GET['action'] === 'api_monitor_jawaban') {
   api_monitor_jawaban();
 }
+// API: Online count realtime (homepage)
+if (isset($_GET['action']) && $_GET['action'] === 'api_get_online_count') {
+  header('Content-Type: application/json; charset=UTF-8');
+  $minutes = (int)($_GET['minutes'] ?? 5);
+  echo json_encode(['ok'=>true,'online_count'=>count_online_sessions($minutes),'minutes'=>$minutes]);
+  exit;
+}
 
 
 // =================================================================

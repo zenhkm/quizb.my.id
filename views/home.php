@@ -296,9 +296,29 @@
     echo '<div class="card mb-2">';
     echo '  <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between">';
     echo '    <div class="small text-muted">Sedang online</div>';
-    echo '    <span class="badge bg-success">' . (int)($online_count ?? 0) . '</span>';
+    echo '    <span id="onlineCountBadge" class="badge bg-success">' . (int)($online_count ?? 0) . '</span>';
     echo '  </div>';
     echo '</div>';
+
+echo <<<'HTML'
+<script>
+(function(){
+  const badge = document.getElementById('onlineCountBadge');
+  if (!badge) return;
+  async function refreshOnline(){
+    try {
+      const res = await fetch('?action=api_get_online_count&minutes=5', { cache: 'no-store' });
+      const j = await res.json();
+      if (j && j.ok && typeof j.online_count !== 'undefined') {
+        badge.textContent = j.online_count;
+      }
+    } catch (e) {}
+  }
+  refreshOnline();
+  setInterval(refreshOnline, 10000);
+})();
+</script>
+HTML;
   echo '<h5 class="widget-title">🏆 Peserta Terbaru</h5>';
   echo '<div class="list-group sidebar-widget">';
     foreach ($recent as $r) {
