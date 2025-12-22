@@ -1,16 +1,42 @@
 <?php
 if (!uid()) die('Akses ditolak');
-if (is_admin()) die('Admin tidak perlu download');
 
 $title_id = (int)($_GET['title_id'] ?? 0);
 if ($title_id <= 0) die('ID Judul tidak valid');
 
-// Ambil Info Judul
-$title_info = q("SELECT qt.title, st.name as subtheme, t.name as theme 
-                  FROM quiz_titles qt
-                  JOIN subthemes st ON qt.subtheme_id = st.id
-                  JOIN themes t ON st.theme_id = t.id
-                  WHERE qt.id = ?", [$title_id])->fetch();
+// Ambil Info Judul + cek akses
+if (is_admin()) {
+    $title_info = q(
+        "SELECT qt.title, st.name as subtheme, t.name as theme
+         FROM quiz_titles qt
+         JOIN subthemes st ON qt.subtheme_id = st.id
+         JOIN themes t ON st.theme_id = t.id
+         WHERE qt.id = ?",
+        [$title_id]
+    )->fetch();
+} else {
+    $allowed_teacher_ids = get_allowed_teacher_ids_for_content();
+    if (empty($allowed_teacher_ids)) {
+        $title_info = q(
+            "SELECT qt.title, st.name as subtheme, t.name as theme
+             FROM quiz_titles qt
+             JOIN subthemes st ON qt.subtheme_id = st.id
+             JOIN themes t ON st.theme_id = t.id
+             WHERE qt.id = ? AND qt.owner_user_id IS NULL",
+            [$title_id]
+        )->fetch();
+    } else {
+        $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
+        $title_info = q(
+            "SELECT qt.title, st.name as subtheme, t.name as theme
+             FROM quiz_titles qt
+             JOIN subthemes st ON qt.subtheme_id = st.id
+             JOIN themes t ON st.theme_id = t.id
+             WHERE qt.id = ? AND (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))",
+            array_merge([$title_id], $allowed_teacher_ids)
+        )->fetch();
+    }
+}
 
 if (!$title_info) die('Data tidak ditemukan');
 
