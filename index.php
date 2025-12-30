@@ -7168,8 +7168,15 @@ HTML;
       . 'const res = await fetch("?action=get_new_messages&with_id=" + otherUserId + "&last_id=" + lastMessageId, {cache: "no-store"});'
       . 'const j = await res.json();'
       . 'if (res.ok && j.ok && j.html){'
-      . 'var container = document.getElementById("message-container"); if (container){var empty = document.getElementById("empty-chat-placeholder"); if (empty) empty.style.display = "none"; container.insertAdjacentHTML("beforeend", j.html); container.scrollTop = container.scrollHeight; if (j.last_id) lastMessageId = j.last_id;} }'
-      . '}catch(e){} }'
+      . 'var container = document.getElementById("message-container");'
+      . 'if (container){'
+      . '  var empty = document.getElementById("empty-chat-placeholder"); if (empty) empty.style.display = "none";'
+      . '  var isSelecting = false; try { isSelecting = (window.getSelection && window.getSelection().toString().length > 0); } catch(e){ isSelecting = false; }'
+      . '  var wasNearBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 150;'
+      . '  container.insertAdjacentHTML("beforeend", j.html);'
+      . '  if (j.last_id) lastMessageId = j.last_id;'
+      . '  if (!isSelecting && wasNearBottom) { container.scrollTop = container.scrollHeight; }'
+      . '} }'
       . 'pollTimer = setInterval(pollNewMessages, pollInterval);pollNewMessages();window.addEventListener("beforeunload", function(){ if (pollTimer) clearInterval(pollTimer); });})();</script>';
   } else {
     // ==========================================================
