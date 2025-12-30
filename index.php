@@ -7415,7 +7415,10 @@ HTML;
     <style>
         .group .dropdown { visibility: hidden; opacity: 0; transition: opacity 0.2s; }
         .group:hover .dropdown { visibility: visible; opacity: 1; }
-        .convo-item { user-select: none; -webkit-user-select: none; }
+        /* Allow selecting text in conversation list and message bubbles so users can copy text */
+        .convo-item { user-select: text; -webkit-user-select: text; }
+        /* Ensure message bubble content and containers are selectable */
+        .group .p-2, #message-container, .convo-item .text-truncate, .convo-item .fw-bold { user-select: text; -webkit-user-select: text; }
     </style>
     <script>
     // Gunakan setTimeout(..., 0) untuk "menunda" eksekusi script 
@@ -7442,9 +7445,6 @@ HTML;
             });
             document.querySelectorAll('.convo-item').forEach(item => {
                 let pressTimer;
-                item.addEventListener('contextmenu', function(e) {
-                    e.preventDefault();
-                });
                 item.addEventListener('touchstart', function(e) {
                     pressTimer = window.setTimeout(() => {
                         if (navigator.vibrate) navigator.vibrate(50);
