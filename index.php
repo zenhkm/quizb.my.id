@@ -7627,10 +7627,13 @@ HTML;
               el.addEventListener('dragleave', _onDragLeave);
               el.addEventListener('dragend', _onDragLeave);
               el.addEventListener('drop', _onDrop);
-              el.addEventListener('click', function(){ chatTextarea.focus(); });
+              // Only focus textarea when clicking the dropzone area — do NOT focus when clicking messages to allow selection
+              if (el.id === 'chat-dropzone') {
+                el.addEventListener('click', function(){ chatTextarea.focus(); });
+              }
             };
 
-            // Attach to both the small dropzone and the messages container so "whole area" accepts files
+            // Attach to both the small dropzone (focusable) and the messages container (no click focus) so "whole area" accepts files
             attachListeners(dropzoneEl);
             attachListeners(messagesEl);
 
