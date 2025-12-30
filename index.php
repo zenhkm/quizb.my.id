@@ -583,6 +583,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_subthemes') {
       FROM subthemes
       WHERE theme_id = ?
         AND owner_user_id IS NULL
+        AND deleted_at IS NULL
       ORDER BY name
     ", [$theme_id])->fetchAll();
 
@@ -606,6 +607,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'api_get_titles') {
       FROM quiz_titles
       WHERE subtheme_id = ? 
         AND owner_user_id IS NULL
+        AND deleted_at IS NULL
       ORDER BY title
     ", [$subtheme_id])->fetchAll();
     echo json_encode($data);
