@@ -145,6 +145,26 @@ if (!$inChallenge && uid()) {
 }
 
 echo '<a class="btn btn-outline-secondary" href="?page=titles&subtheme_id=' . h(q("SELECT subtheme_id FROM quiz_titles WHERE id=?", [$session['title_id']])->fetch()['subtheme_id']) . '">Pilih Judul Lain</a>';
+
+// Tampilkan judul terkait (dari actions/summary.php)
+if (!empty($related_titles ?? [])) {
+    echo '<div class="mt-3 w-100">';
+    echo '  <div class="card">';
+    echo '    <div class="card-body p-3">';
+    echo '      <h5 class="card-title mb-2">Judul lain di tema/subtema ini</h5>';
+    echo '      <div class="list-group list-group-flush small">';
+    foreach ($related_titles as $rt) {
+        echo '        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="?page=play&title_id=' . (int)$rt['id'] . '">';
+        echo '          <span>' . h($rt['title']) . '</span>';
+        echo '          <span class="badge bg-secondary rounded-pill ms-2">' . h($rt['subn']) . '</span>';
+        echo '        </a>';
+    }
+    echo '      </div>';
+    echo '    </div>';
+    echo '  </div>';
+    echo '</div>';
+}
+
 echo '</div>';
 
 if (!empty($_SESSION['current_challenge_token'])) {

@@ -137,24 +137,7 @@ echo '  <div id="loading-indicator" class="text-center p-4" style="display: none
         </svg>
     </div>';
 echo   '</div>';
-// Tampilkan kotak "Judul terkait" (tema/subtema sama)
-if (!empty($related_titles)) {
-    echo '<div class="mt-4">';
-    echo '  <div class="card">';
-    echo '    <div class="card-body p-3">';
-    echo '      <h5 class="card-title mb-2">Judul lain di tema/subtema ini</h5>';
-    echo '      <div class="list-group list-group-flush small">';
-    foreach ($related_titles as $rt) {
-        echo '        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="?page=play&title_id=' . (int)$rt['id'] . '">';
-        echo '          <span>' . h($rt['title']) . '</span>';
-        echo '          <span class="badge bg-secondary rounded-pill ms-2">' . h($rt['subn']) . '</span>';
-        echo '        </a>';
-    }
-    echo '      </div>';
-    echo '    </div>';
-    echo '  </div>';
-    echo '</div>';
-}
+
 // Tanam data dari PHP ke JavaScript
 $session_id_for_js = (int)$_SESSION['quiz']['session_id'];
 $assignment_settings = $_SESSION['quiz']['assignment_settings'] ?? null;
