@@ -78,6 +78,31 @@ if (!$title) {
   return;
 }
 
+// Ambil daftar judul yang terkait (subtheme yang sama ATAU theme yang sama)
+// Respect visibility / owner rules sama seperti query title di atas
+$related_titles = [];
+$sub_id = (int)$title['subtheme_id'];
+if (empty($allowed_teacher_ids)) {
+    $related_titles = q(
+        "SELECT qt.id, qt.title, st.name subn FROM quiz_titles qt
+         JOIN subthemes st ON st.id=qt.subtheme_id
+         WHERE (qt.subtheme_id = ? OR st.theme_id = (SELECT theme_id FROM subthemes WHERE id = ?))
+           AND qt.id <> ? AND qt.deleted_at IS NULL AND st.deleted_at IS NULL
+         ORDER BY qt.title LIMIT 8",
+        [$sub_id, $sub_id, $title_id]
+    )->fetchAll();
+} else {
+    $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
+    // Note: owner_user_id filter applied to allow teacher-owned titles
+    $sql = "SELECT qt.id, qt.title, st.name subn FROM quiz_titles qt
+            JOIN subthemes st ON st.id=qt.subtheme_id
+            WHERE (qt.subtheme_id = ? OR st.theme_id = (SELECT theme_id FROM subthemes WHERE id = ?))
+              AND qt.id <> ? AND (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))
+              AND qt.deleted_at IS NULL AND st.deleted_at IS NULL
+            ORDER BY qt.title LIMIT 8";
+    $related_titles = q($sql, array_merge([$sub_id, $sub_id, $title_id], $allowed_teacher_ids))->fetchAll();
+}
+
 // Cek apakah ini dari assignment atau restart (jangan tampilkan pilihan mode)
 $from_assignment = isset($_GET['assignment_id']) && (int)$_GET['assignment_id'] > 0;
 $is_restart = isset($_GET['restart']) && $_GET['restart'] === '1';
