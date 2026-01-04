@@ -283,7 +283,7 @@ $message = $_GET['msg'] ?? '';
                      onclick="window.location='?page=teacher_bank_soal&theme_id=<?= $theme['id'] ?>'">
                     <span><?= h($theme['name']) ?></span>
                     <div class="panel-item-actions">
-                        <button class="btn btn-icon btn-sm btn-outline-primary" onclick="event.stopPropagation(); editTheme(<?= $theme['id'] ?>, '<?= h($theme['name']) ?>')" title="Edit">
+                        <button class="btn btn-icon btn-sm btn-outline-primary" onclick="event.stopPropagation(); editTheme(<?= $theme['id'] ?>, <?= h(json_encode($theme['name'])) ?>)" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button class="btn btn-icon btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteTheme(<?= $theme['id'] ?>)" title="Hapus">
@@ -324,7 +324,7 @@ $message = $_GET['msg'] ?? '';
                      onclick="window.location='?page=teacher_bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $sub['id'] ?>'">
                     <span><?= h($sub['name']) ?></span>
                     <div class="panel-item-actions">
-                        <button class="btn btn-icon btn-sm btn-outline-primary" onclick="event.stopPropagation(); editSubtheme(<?= $sub['id'] ?>, '<?= h($sub['name']) ?>')" title="Edit">
+                        <button class="btn btn-icon btn-sm btn-outline-primary" onclick="event.stopPropagation(); editSubtheme(<?= $sub['id'] ?>, <?= h(json_encode($sub['name'])) ?>)" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button class="btn btn-icon btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteSubtheme(<?= $sub['id'] ?>)" title="Hapus">
@@ -370,7 +370,7 @@ $message = $_GET['msg'] ?? '';
                              onclick="window.location='?page=teacher_bank_soal&theme_id=<?= $selected_theme ?>&subtheme_id=<?= $selected_subtheme ?>&title_id=<?= $title['id'] ?>'">
                             <span><?= h($title['title']) ?></span>
                             <div onclick="event.stopPropagation();" style="display: flex; gap: 4px;">
-                                <button class="btn btn-sm btn-outline-primary" onclick="editTitle(<?= $title['id'] ?>, '<?= h($title['title']) ?>', <?= $selected_subtheme ?>)" title="Edit">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editTitle(<?= $title['id'] ?>, <?= h(json_encode($title['title'])) ?>, <?= $selected_subtheme ?>)" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteTitle(<?= $title['id'] ?>)" title="Hapus">
