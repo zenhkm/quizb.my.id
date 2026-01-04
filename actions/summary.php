@@ -23,29 +23,61 @@ $quiz_details = q("
 ", [$session['title_id']])->fetch();
 $user_name = $_SESSION['user']['name'] ?? 'Peserta';
 
-// Ambil daftar judul terkait (subtheme yang sama ATAU theme yang sama)
+// Ambil daftar judul terkait: 1) subtema yang sama, 2) tema yang sama (subtema berbeda)
 // Respect visibility / owner rules sama seperti query title di play.php
-$related_titles = [];
-$sub_id = (int)$session['title_id'] ? (int)q("SELECT subtheme_id FROM quiz_titles WHERE id=?", [$session['title_id']])->fetchColumn() : 0;
+$related_subtheme_titles = [];
+$related_theme_titles = [];
+$sub_id = (int)q("SELECT subtheme_id FROM quiz_titles WHERE id=?", [$session['title_id']])->fetchColumn();
+$theme_id = $sub_id ? (int)q("SELECT theme_id FROM subthemes WHERE id=?", [$sub_id])->fetchColumn() : 0;
 $allowed_teacher_ids = get_allowed_teacher_ids_for_content();
-if (empty($allowed_teacher_ids)) {
-    $related_titles = q(
-        "SELECT qt.id, qt.title, st.name subn FROM quiz_titles qt
-         JOIN subthemes st ON st.id=qt.subtheme_id
-         WHERE (qt.subtheme_id = ? OR st.theme_id = (SELECT theme_id FROM subthemes WHERE id = ?))
-           AND qt.id <> ? AND qt.deleted_at IS NULL AND st.deleted_at IS NULL
-         ORDER BY qt.title LIMIT 8",
-        [$sub_id, $sub_id, $session['title_id']]
-    )->fetchAll();
+
+if ($sub_id) {
+    if (empty($allowed_teacher_ids)) {
+        // Subtheme titles (same subtheme)
+        $related_subtheme_titles = q(
+            "SELECT qt.id, qt.title FROM quiz_titles qt
+             WHERE qt.subtheme_id = ?
+               AND qt.id <> ? AND qt.deleted_at IS NULL
+             ORDER BY qt.title LIMIT 8",
+            [$sub_id, $session['title_id']]
+        )->fetchAll();
+
+        // Theme titles (same theme, but different subtheme)
+        if ($theme_id) {
+            $related_theme_titles = q(
+                "SELECT qt.id, qt.title, st.name subn FROM quiz_titles qt
+                 JOIN subthemes st ON st.id = qt.subtheme_id
+                 WHERE st.theme_id = ? AND qt.subtheme_id <> ?
+                   AND qt.id <> ? AND qt.deleted_at IS NULL AND st.deleted_at IS NULL
+                 ORDER BY qt.title LIMIT 8",
+                [$theme_id, $sub_id, $session['title_id']]
+            )->fetchAll();
+        }
+    } else {
+        $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
+        // Subtheme titles (same subtheme)
+        $sql_sub = "SELECT qt.id, qt.title FROM quiz_titles qt
+                    WHERE qt.subtheme_id = ?
+                      AND qt.id <> ? AND (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))
+                      AND qt.deleted_at IS NULL
+                    ORDER BY qt.title LIMIT 8";
+        $related_subtheme_titles = q($sql_sub, array_merge([$sub_id, $session['title_id']], $allowed_teacher_ids))->fetchAll();
+
+        // Theme titles (same theme, different subtheme)
+        if ($theme_id) {
+            $sql_theme = "SELECT qt.id, qt.title, st.name subn FROM quiz_titles qt
+                         JOIN subthemes st ON st.id = qt.subtheme_id
+                         WHERE st.theme_id = ? AND qt.subtheme_id <> ?
+                           AND qt.id <> ? AND (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))
+                           AND qt.deleted_at IS NULL AND st.deleted_at IS NULL
+                         ORDER BY qt.title LIMIT 8";
+            $related_theme_titles = q($sql_theme, array_merge([$theme_id, $sub_id, $session['title_id']], $allowed_teacher_ids))->fetchAll();
+        }
+    }
 } else {
-    $placeholders = implode(',', array_fill(0, count($allowed_teacher_ids), '?'));
-    $sql = "SELECT qt.id, qt.title, st.name subn FROM quiz_titles qt
-            JOIN subthemes st ON st.id=qt.subtheme_id
-            WHERE (qt.subtheme_id = ? OR st.theme_id = (SELECT theme_id FROM subthemes WHERE id = ?))
-              AND qt.id <> ? AND (qt.owner_user_id IS NULL OR qt.owner_user_id IN ($placeholders))
-              AND qt.deleted_at IS NULL AND st.deleted_at IS NULL
-            ORDER BY qt.title LIMIT 8";
-    $related_titles = q($sql, array_merge([$sub_id, $sub_id, $session['title_id']], $allowed_teacher_ids))->fetchAll();
+    // Jika tidak ada subtheme, kosongkan kedua list
+    $related_subtheme_titles = [];
+    $related_theme_titles = [];
 }
 
 // 1. Ambil semua jawaban yang sudah dicatat (untuk menghitung yang benar)
